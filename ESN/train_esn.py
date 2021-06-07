@@ -5,34 +5,166 @@ import matplotlib.pyplot as plt
 import pickle
 import random
 import time
+import os
+from scipy.signal import butter, sosfilt
 
-data_file_name = 'Traindata/usage_05-04-2021_12-04-2021.csv'
+data_file_name = 'Datasets/Correct/usage_2021-05-17_2021-05-24.csv'
 model_file_name = 'Models/ESN-test-1500'
 das_modell = None
 model_exists = True
+
 # HYPERPARAMETERS
 hp = {
     'resevoir_size': 1000,
-    'sparsity': 0.01,
+    'sparsity': 0.05,
     'rand_seed': 23,
     'spectral_radius': 0.9,
     'noise': 0.001
 }
 
-
 # Use data of past n samples (sample interval is 10s)
-past_window_size = 3000
+past_window_size = 1000
 # to predict the next minute
-future_window_size = 2
+future_window_size = 10
 # train block size enables us not to load the entire dataset into memory, but to work in blocks
 # This value should 
-future_window_total = 100
+future_window_total = 20 * future_window_size
 
 # Shuffle data for training
 shuffle = False
 
 # Validation fraction of samples
 validation = 0.1
+
+# frequency of samples: 1 / sample interval = 1/10 = 0.1
+samplerate = 0.1
+
+def butter_lowpass(data, cutoff, samplerate, order=5):
+    nyq = 0.5 * samplerate
+    normal_cutoff = cutoff / nyq
+    sos = butter(order, normal_cutoff, btype='low', analog=False, output='sos')
+    return sosfilt(sos, data)
+
+def butter_highpass(data, cutoff, samplerate, order=5):
+    nyq = 0.5 * samplerate
+    normal_cutoff = cutoff / nyq
+    sos = butter(order, normal_cutoff, btype='high', analog=False, output='sos')
+    return sosfilt(sos, data)
+
+def esn_filtered_1():
+    das_modell = ESN(
+        n_inputs = 1,
+        n_outputs = 1,
+        n_reservoir = hp['resevoir_size'],
+        # sparsity = hp['sparsity'],
+        random_state = hp['rand_seed'],
+        spectral_radius = hp['spectral_radius'],
+        noise = hp['noise'],
+        silent = True
+    )
+    data = np.genfromtxt(data_file_name, skip_header=0, usecols=(1), delimiter=',')
+    data = butter_lowpass(data, 1 / (30 * 60), samplerate)
+    train_size = int(len(data) / 2)
+    train = data[0 : train_size]
+    real = data[train_size : ]
+    real_size = len(real)
+    
+    das_modell.fit(np.ones(train_size), train)
+    predict = das_modell.predict(np.ones(real_size))
+    # return
+    plt.figure()
+    plt.plot(
+        data, 
+        label='data'
+        )
+    plt.plot(
+        range(train_size, train_size + real_size), 
+        predict, 
+        label='prediction'
+        )
+    plt.show()
+
+def esn_filtered_2():
+    das_modell = ESN(
+        n_inputs = 1,
+        n_outputs = 1,
+        n_reservoir = hp['resevoir_size'],
+        sparsity = hp['sparsity'],
+        random_state = hp['rand_seed'],
+        spectral_radius = hp['spectral_radius'],
+        noise = hp['noise'],
+        silent = True
+    )
+    data = np.genfromtxt(data_file_name, skip_header=0, usecols=(1), delimiter=',')
+    filtered = butter_lowpass(data, 1 / (120 * 60), samplerate)
+    ref, filtered = normalize_change(filtered)
+    train_size = int(len(filtered) / 2)
+    train = filtered[0 : train_size]
+    real = filtered[train_size : ]
+    real_size = len(real)
+    
+    das_modell.fit(np.ones(train_size), train)
+    predict = das_modell.predict(np.ones(real_size))
+    # return
+    plt.figure()
+    plt.plot(
+        filtered, 
+        label='data'
+        )
+    plt.plot(
+        range(train_size, train_size + real_size), 
+        predict, 
+        label='prediction'
+        )
+    plt.show()
+
+def esn_filtered_3():
+    das_modell = ESN(
+        n_inputs = 1,
+        n_outputs = 1,
+        n_reservoir = hp['resevoir_size'],
+        sparsity = hp['sparsity'],
+        random_state = hp['rand_seed'],
+        spectral_radius = hp['spectral_radius'],
+        noise = hp['noise'],
+        silent = True
+    )
+    data = np.genfromtxt(data_file_name, skip_header=0, usecols=(1), delimiter=',')
+    data = butter_highpass(data, 1 / (30 * 60), samplerate)
+    
+    prediction_chain = np.empty((0))
+    
+    indices_train = range(past_window_size, past_window_size + future_window_total, future_window_size)
+    cnt = 0
+    train_size = len(indices_train)
+    for i in indices_train:
+        train_inputs = data[i - past_window_size : i]
+        # Normalize ze data
+        
+        time_start = time.time()
+        # train_outputs = das_modell.fit(train_inputs, data_set[i - past_window_size + future_window_size : i + future_window_size])
+        train_outputs = das_modell.fit(np.ones(past_window_size), train_inputs)
+        time_end = time.time()
+        # make prediction
+        prediction = das_modell.predict(np.ones(future_window_size))
+        real = data[i : i + future_window_size]
+        mse = MSE(prediction, real)
+        prediction_chain = np.append(prediction_chain, prediction)
+
+        print('{}/{} \t{}\t{}'.format(cnt, train_size, round(time_end - time_start, 4), round(mse, 4)))
+        cnt += 1
+    plt.figure()
+    plt.plot(
+        range(past_window_size - future_window_total, past_window_size + future_window_total), 
+        data[past_window_size - future_window_total : past_window_size + future_window_total], 
+        label='data'
+        )
+    plt.plot(
+        range(past_window_size, past_window_size + future_window_total), 
+        prediction_chain, 
+        label='prediction'
+        )
+    plt.show()
 
 def MSE(yhat, y):
     ph = np.subtract(yhat, y)
@@ -197,13 +329,13 @@ def esn_predict_normalized():
     else:
         indices_train = range(past_window_size, past_window_size + future_window_total, future_window_size)
     
-    
 # Express dataset as as change relative to preceding value
 # returned dataset is of size input dataset - 1
 def normalize_change(data: np.ndarray):
     # return last value in the train dataset, since that value is required to denormalize the predictions
     ref = data[0]
     normalized = np.empty((0))
+    data[data == 0] = 1
     for i in range(1, data.size):
         normalized = np.append(normalized, data[i] / data[i - 1])
     return ref, normalized
@@ -409,6 +541,5 @@ def test_normalization():
     print(np.round(data, 2))
     print(res)
 
-
 if __name__ == '__main__':
-    esn_train_normalized()
+    esn_filtered_3()

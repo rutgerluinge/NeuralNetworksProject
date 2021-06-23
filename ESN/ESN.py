@@ -61,9 +61,74 @@ class ESN:
                     self.W[i][j] = round(random.gauss(0, 0.3),
                                          decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
 
-
+        self.printW()
 
     def init_Win(self):
+        # Input
+        # scaling
+        # determines
+        # how
+        # nonlinear
+        # the
+        # reservoir
+        # responses
+        # are.For
+        # very
+        # linear
+        # tasks
+        # Win
+        # should
+        # be
+        # small, letting
+        # units
+        # operate
+        # around
+        # the
+        # 0
+        # point
+        # where
+        # their
+        # activation
+        # tanh(·) is virtually
+        # linear.For
+        # large
+        # Win, the
+        # units
+        # will
+        # get
+        # easily
+        # saturated
+        # close
+        # to
+        # their
+        # 1 and −1
+        # values, acting in
+        # a
+        # more
+        # nonlinear, binary
+        # switching
+        # manner.While
+        # ρ(W)
+        # also
+        # affects
+        # the
+        # nonlinearity, the
+        # reservoir
+        # activations
+        # become
+        # unstable
+        # when
+        # increasing
+        # ρ(W), as explained in Section
+        # 3.2
+        # .4, before
+        # it
+        # can
+        # make
+        # the
+        # reservoir
+        # highly
+        # nonlinear.
         pass
 
     def init_bias(self):
@@ -79,7 +144,7 @@ def ESN_main():
     filename = askopenfilename()
     data = pd.read_csv(filename)
 
-    esn = ESN(4, 20, 1,
+    esn = ESN(4, 1000, 1,
               None)  # predict 1 timestamp based on the 4 previous ones? reservoir size = 1000 (might need more)
 
 

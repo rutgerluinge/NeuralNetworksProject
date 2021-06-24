@@ -1,8 +1,10 @@
 import numpy as np
+from numpy import linalg as LA
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 import pandas as pd
 import random
+import scipy
 
 # We need sigmoid functions
 # Some ridge regression
@@ -32,6 +34,7 @@ class ESN:
         self.output = [0] * output_size
 
         self.init_W()
+        self.init_Win()
 
     # This could be a uniform distribution or a bell curve around 0? Could implement the eigenvalue thing of 1/ev.
     # ja, een van deze opties: symmetrical uniform, discrete bi-valued, or normal distribution
@@ -57,79 +60,16 @@ class ESN:
 
         for i in range(len(self.W)):
             for j in range(len(self.W)):
-                if random.randint(1, 99) <= connectivity:   #connectivity is set to 1 (0.01 or 1 percent)
+                if random.randint(1, 99) <= connectivity:  # connectivity is set to 1 (0.01 or 1 percent)
                     self.W[i][j] = round(random.gauss(0, 0.3),
                                          decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
 
-        self.printW()
-
     def init_Win(self):
-        # Input
-        # scaling
-        # determines
-        # how
-        # nonlinear
-        # the
-        # reservoir
-        # responses
-        # are.For
-        # very
-        # linear
-        # tasks
-        # Win
-        # should
-        # be
-        # small, letting
-        # units
-        # operate
-        # around
-        # the
-        # 0
-        # point
-        # where
-        # their
-        # activation
-        # tanh(·) is virtually
-        # linear.For
-        # large
-        # Win, the
-        # units
-        # will
-        # get
-        # easily
-        # saturated
-        # close
-        # to
-        # their
-        # 1 and −1
-        # values, acting in
-        # a
-        # more
-        # nonlinear, binary
-        # switching
-        # manner.While
-        # ρ(W)
-        # also
-        # affects
-        # the
-        # nonlinearity, the
-        # reservoir
-        # activations
-        # become
-        # unstable
-        # when
-        # increasing
-        # ρ(W), as explained in Section
-        # 3.2
-        # .4, before
-        # it
-        # can
-        # make
-        # the
-        # reservoir
-        # highly
-        # nonlinear.
-        pass
+        eigenvalues = LA.eigh(self.W)
+        print(eigenvalues)
+
+
+
 
     def init_bias(self):
         pass

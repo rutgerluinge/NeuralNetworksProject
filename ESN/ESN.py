@@ -4,6 +4,8 @@ from tkinter.filedialog import askopenfilename
 import pandas as pd
 import random
 
+
+
 # We need sigmoid functions
 # Some ridge regression
 # Randomization of weights
@@ -60,8 +62,12 @@ class ESN:
                 if random.randint(1, 99) <= connectivity:   #connectivity is set to 1 (0.01 or 1 percent)
                     self.W[i][j] = round(random.gauss(0, 0.3),
                                          decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
+        
+        spectralRad = np.max(np.absolute(np.linalg.eigvals(self.W)))
+        self.W = self.W/spectralRad
 
         self.printW()
+        print(spectralRad)
 
     def init_Win(self):
         # Input
@@ -140,6 +146,7 @@ class ESN:
 
 
 def ESN_main():
+    
     Tk().withdraw()
     filename = askopenfilename()
     data = pd.read_csv(filename)

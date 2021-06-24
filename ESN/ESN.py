@@ -4,7 +4,8 @@ from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 import pandas as pd
 import random
-import scipy
+import math
+
 
 # We need sigmoid functions
 # Some ridge regression
@@ -14,7 +15,11 @@ import scipy
 
 connectivity = 1  # percent
 decimals = 3  # weight decimals
+input_scaling = 1
+SD = 0.3
 
+W_Scalar = 1 # voor s/m/l later misschien?
+Win_Scalar = 1 # stond aangegeven in document dat handig zou zijn
 
 class ESN:
     # Initialize the ESN
@@ -27,7 +32,7 @@ class ESN:
         # Instantiate the matrixes to all 0 values
         self.reservoir = [0] * reservoir_size
         self.W = [[0 for i in range(reservoir_size)] for j in range(reservoir_size)]
-        self.Win = [[0] * input_size] * reservoir_size
+        self.Win = [[0.0 for i in range(input_size)] for j in range(reservoir_size)]
         self.Wfb = [[0] * output_size] * reservoir_size
         self.bias = [0] * reservoir_size
         self.Wout = [[0] * reservoir_size] * output_size
@@ -60,15 +65,24 @@ class ESN:
 
         for i in range(len(self.W)):
             for j in range(len(self.W)):
-                if random.randint(1, 99) <= connectivity:  # connectivity is set to 1 (0.01 or 1 percent)
-                    self.W[i][j] = round(random.gauss(0, 0.3),
+                if random.randint(1, 99) <= connectivity:   #connectivity is set to 1 (0.01 or 1 percent)
+                    self.W[i][j] = W_Scalar * round(random.gauss(0, SD),
                                          decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
 
+        spectralRad = np.max(np.absolute(np.linalg.eigvals(self.W)))
+        if spectralRad > 1:
+            print("!!!ERROR SPECTRAL RADIUS > 1!!!")
+        self.W = self.W/spectralRad
+
     def init_Win(self):
-        eigenvalues = LA.eigh(self.W)
-        print(eigenvalues)
+        for i in range(self.reservoir_size):
+            for j in range(self.input_size):
+                self.Win[i][j] = float(Win_Scalar * (np.random.normal(0, SD, None)))
+                # normal distribution mean 0, SE = 0.3, niet zeker over tanh, stond in document iets over
+                # Win_scaler is defined boven in dit script, (global parameter, zoals in document (wat we kunnen veranderen))
 
 
+        print(self.Win)
 
 
     def init_bias(self):
@@ -80,6 +94,7 @@ class ESN:
 
 
 def ESN_main():
+
     Tk().withdraw()
     filename = askopenfilename()
     data = pd.read_csv(filename)

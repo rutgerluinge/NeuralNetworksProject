@@ -31,7 +31,7 @@ class ESN:
 
         # Instantiate the matrixes to all 0 values
         self.reservoir = [0] * reservoir_size
-        self.W = [[0 for i in range(reservoir_size+1)] for j in range(reservoir_size)]
+        self.W = [[0.0 for i in range(reservoir_size)] for j in range(reservoir_size)]
         self.Win = [[0.0 for i in range(input_size+1)] for j in range(reservoir_size)]
         self.Wfb = [[0] * output_size] * reservoir_size
         self.bias = [0] * reservoir_size
@@ -64,7 +64,7 @@ class ESN:
         # connectivity 1 procent -> 10 connections per neuron
 
         for i in range(self.reservoir_size):
-            for j in range(1, (self.reservoir_size + 1)):
+            for j in range(self.reservoir_size):
                 if random.randint(1, 99) <= connectivity:   #connectivity is set to 1 (0.01 or 1 percent)
                     self.W[i][j] = W_Scalar * round(random.gauss(0, SD),
                                          decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
@@ -92,6 +92,9 @@ class ESN:
 
         print(self.Win)
 
+    def leaking_rate(self, x):  #x = reservoir state vector
+        x = -x + math.tanh(self.Win[1:self.input_size] + self.W * x)
+        return x
 
     def init_bias(self):
         pass

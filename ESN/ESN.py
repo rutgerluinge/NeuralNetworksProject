@@ -32,7 +32,7 @@ class ESN:
         # Instantiate the matrixes to all 0 values
         self.reservoir = [0] * reservoir_size
         self.W = [[0 for i in range(reservoir_size)] for j in range(reservoir_size)]
-        self.Win = [[0.0 for i in range(input_size)] for j in range(reservoir_size)]
+        self.Win = [[0.0 for i in range(input_size+1)] for j in range(reservoir_size)]
         self.Wfb = [[0] * output_size] * reservoir_size
         self.bias = [0] * reservoir_size
         self.Wout = [[0] * reservoir_size] * output_size
@@ -76,7 +76,7 @@ class ESN:
 
     def init_Win(self):
         for i in range(self.reservoir_size):
-            for j in range(self.input_size):
+            for j in range(1,(self.input_size+1)):
                 self.Win[i][j] = float(Win_Scalar * (np.random.normal(0, SD, None)))
                 # normal distribution mean 0, SE = 0.3, niet zeker over tanh, stond in document iets over
                 # Win_scaler is defined boven in dit script, (global parameter, zoals in document (wat we kunnen veranderen))
@@ -99,7 +99,7 @@ def ESN_main():
     filename = askopenfilename()
     data = pd.read_csv(filename)
 
-    esn = ESN(4, 1000, 1,
+    esn = ESN(1, 5, 1,
               None)  # predict 1 timestamp based on the 4 previous ones? reservoir size = 1000 (might need more)
 
 

@@ -30,8 +30,8 @@ class ESN:
         self.output_size = output_size
 
         # Instantiate the matrixes to all 0 values
-        self.reservoir = [0] * reservoir_size
-        self.W = [[0 for i in range(reservoir_size)] for j in range(reservoir_size)]
+        self.reservoir = [0.0 for i in range(reservoir_size)]
+        self.W = [[0.0 for i in range(reservoir_size)] for j in range(reservoir_size)]
         self.Win = [[0.0 for i in range(input_size)] for j in range(reservoir_size)]
         self.Wfb = [[0] * output_size] * reservoir_size
         self.bias = [0] * reservoir_size
@@ -52,7 +52,9 @@ class ESN:
     def process_input(self, input):
         '''Function would look something like this:
             self.reservoir = sigmoid(self.Win*input + self.W*self.reservoir + self.Wfb*self.output + self.bias)'''
-        self.reservoir = np.tanh(np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(self.output)), self.bias))[:][0]
+        result = np.tanh(np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(self.output)), self.bias))[:][0]
+        print(result.shape)
+        self.reservoir = result
     
     def get_output(self):
         # does this need the linear regression?
@@ -64,21 +66,29 @@ class ESN:
         # centered around zero, Gaussian distributions (populair) en uniform distribution (populair)
         # connectivity 1 procent -> 10 connections per neuron
 
-        for i in range(len(self.W)):
-            for j in range(len(self.W)):
+        for i in range(self.reservoir_size):
+            for j in range(self.reservoir_size):
                 if random.randint(1, 99) <= connectivity:   #connectivity is set to 1 (0.01 or 1 percent)
                     self.W[i][j] = W_Scalar * round(random.gauss(0, SD),
                                          decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
 
+        #self.printW()
         spectralRad = np.max(np.absolute(np.linalg.eigvals(self.W)))
         if spectralRad > 1:
             print("!!!ERROR SPECTRAL RADIUS > 1!!!")
-        self.W = self.W/spectralRad
+
+            self.W = self.W / spectralRad
+        elif spectralRad == 0:
+            print("!!!ERROR SPECTRAL RADIUS = 1, MIGHT CONSIDER BIGGER RESERVOIR SIZE!!!")
+        else:
+            self.W = self.W / spectralRad
         self.W = np.array(self.W)
+
+
 
     def init_Win(self):
         for i in range(self.reservoir_size):
-            for j in range(self.input_size):
+            for j in range(1,(self.input_size)):
                 self.Win[i][j] = float(Win_Scalar * (np.random.normal(0, SD, None)))
                 # normal distribution mean 0, SE = 0.3, niet zeker over tanh, stond in document iets over
                 # Win_scaler is defined boven in dit script, (global parameter, zoals in document (wat we kunnen veranderen))
@@ -86,6 +96,9 @@ class ESN:
 
         #print(self.Win)
 
+    def leaking_rate(self, x):  #x = reservoir state vector
+        x = -x + math.tanh(self.Win[1:self.input_size] + self.W * x)
+        return x
 
     def init_bias(self):
         pass
@@ -105,7 +118,7 @@ def ESN_main():
     filename = askopenfilename()
     data = pd.read_csv(filename)
 
-    esn = ESN(4, 1000, 1,
+    esn = ESN(1, 100, 1,
               None)  # predict 1 timestamp based on the 4 previous ones? reservoir size = 1000 (might need more)
 
 

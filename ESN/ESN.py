@@ -31,7 +31,7 @@ class ESN:
 
         # Instantiate the matrixes to all 0 values
         self.reservoir = [0] * reservoir_size
-        self.W = [[0 for i in range(reservoir_size)] for j in range(reservoir_size)]
+        self.W = [[0 for i in range(reservoir_size+1)] for j in range(reservoir_size)]
         self.Win = [[0.0 for i in range(input_size+1)] for j in range(reservoir_size)]
         self.Wfb = [[0] * output_size] * reservoir_size
         self.bias = [0] * reservoir_size
@@ -63,16 +63,24 @@ class ESN:
         # centered around zero, Gaussian distributions (populair) en uniform distribution (populair)
         # connectivity 1 procent -> 10 connections per neuron
 
-        for i in range(len(self.W)):
-            for j in range(len(self.W)):
+        for i in range(self.reservoir_size):
+            for j in range(1, (self.reservoir_size + 1)):
                 if random.randint(1, 99) <= connectivity:   #connectivity is set to 1 (0.01 or 1 percent)
                     self.W[i][j] = W_Scalar * round(random.gauss(0, SD),
                                          decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
 
+        self.printW()
         spectralRad = np.max(np.absolute(np.linalg.eigvals(self.W)))
+
         if spectralRad > 1:
             print("!!!ERROR SPECTRAL RADIUS > 1!!!")
-        self.W = self.W/spectralRad
+            self.W = self.W / spectralRad
+        elif spectralRad == 0:
+            print("!!!ERROR SPECTRAL RADIUS = 1, MIGHT CONSIDER BIGGER RESERVOIR SIZE!!!")
+        else:
+            self.W = self.W / spectralRad
+
+
 
     def init_Win(self):
         for i in range(self.reservoir_size):
@@ -99,7 +107,7 @@ def ESN_main():
     filename = askopenfilename()
     data = pd.read_csv(filename)
 
-    esn = ESN(1, 5, 1,
+    esn = ESN(1, 100, 1,
               None)  # predict 1 timestamp based on the 4 previous ones? reservoir size = 1000 (might need more)
 
 

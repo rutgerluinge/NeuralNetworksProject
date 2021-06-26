@@ -23,7 +23,7 @@ Win_Scalar = 1 # stond aangegeven in document dat handig zou zijn
 
 class ESN:
     # Initialize the ESN
-    def __init__(self, input_size, reservoir_size, output_size, feedback):
+    def __init__(self, input_size, reservoir_size, output_size):
         # Set the different sizes
         self.input_size = input_size
         self.reservoir_size = reservoir_size
@@ -40,6 +40,7 @@ class ESN:
 
         self.init_W()
         self.init_Win()
+        self.init_Wfb()
 
     # This could be a uniform distribution or a bell curve around 0? Could implement the eigenvalue thing of 1/ev.
     # ja, een van deze opties: symmetrical uniform, discrete bi-valued, or normal distribution
@@ -51,8 +52,8 @@ class ESN:
     def process_input(self, input):
         '''Function would look something like this:
             self.reservoir = sigmoid(self.Win*input + self.W*self.reservoir + self.Wfb*self.output + self.bias)'''
-        pass
-
+        self.reservoir = np.tanh(np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(self.output)), self.bias))[:][0]
+    
     def get_output(self):
         # does this need the linear regression?
         self.output = self.Wout * self.reservoir
@@ -73,6 +74,7 @@ class ESN:
         if spectralRad > 1:
             print("!!!ERROR SPECTRAL RADIUS > 1!!!")
         self.W = self.W/spectralRad
+        self.W = np.array(self.W)
 
     def init_Win(self):
         for i in range(self.reservoir_size):
@@ -80,13 +82,17 @@ class ESN:
                 self.Win[i][j] = float(Win_Scalar * (np.random.normal(0, SD, None)))
                 # normal distribution mean 0, SE = 0.3, niet zeker over tanh, stond in document iets over
                 # Win_scaler is defined boven in dit script, (global parameter, zoals in document (wat we kunnen veranderen))
+        self.Win = np.array(self.Win)
 
-
-        print(self.Win)
+        #print(self.Win)
 
 
     def init_bias(self):
         pass
+
+    def init_Wfb(self):
+
+        self.Wfb = np.array(self.Wfb)
 
     def printW(self):
         for i in range(self.reservoir_size):

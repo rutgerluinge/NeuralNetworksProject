@@ -23,6 +23,9 @@ BASEDIR = os.path.abspath(os.path.dirname(__file__))
 data - the data sepperated in wanted lengths
 input-length - the sequence the ESN gets without expecting any results
 '''
+
+#Input: an Echo State Network, the training data, and the input_length that is disregarded for training purposes
+#Puts the training data in the generated ESN
 def train_esn(ESN, data, input_length):
     # Run network
     data_points = len(data)
@@ -38,8 +41,11 @@ def train_esn(ESN, data, input_length):
     state_matrix = np.array(state_matrix)
     print(state_matrix.shape)
     ESN.Wout = get_weights(state_matrix, data[input_length:])
+    
 
-
+#Input: reservoir states recieved from the ESN and training data, The desired output
+#Output: The fitted weights for the output vector
+#alpha is the regularization strength used in regression
 def get_weights(state_matrix, teacher):
     ridge = Ridge(alpha=1.0)
     ridge.fit(state_matrix, teacher)

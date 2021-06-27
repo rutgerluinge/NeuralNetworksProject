@@ -29,18 +29,17 @@ input-length - the sequence the ESN gets without expecting any results
 def train_esn(ESN, data, input_length):
     # Run network
     data_points = len(data)
-    state_matrix = [None] * (data_points - input_length)
-    for i in range(data_points):
+    state_matrix = [None] * (data_points - input_length -1)
+    for i in range(data_points-1):
         if i < input_length:
-            ESN.process_input(data[i])
+            ESN.process_training_input(data[i])
         else:
-            ESN.output = data[i - 1]
-            ESN.process_input(0)
+            ESN.process_training_input(data[i])
             state_matrix[i-input_length] = ESN.reservoir
     print(np.array(ESN.reservoir).shape)
     state_matrix = np.array(state_matrix)
     print(state_matrix.shape)
-    ESN.Wout = get_weights(state_matrix, data[input_length:])
+    ESN.Wout = get_weights(state_matrix, data[input_length+1:])
     
 
 #Input: reservoir states recieved from the ESN and training data, The desired output

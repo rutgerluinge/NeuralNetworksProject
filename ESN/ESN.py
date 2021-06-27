@@ -45,18 +45,19 @@ class ESN:
 
 
 
-    #Formula 18 in practicalESN.pdf with an added term for bias
-    #calculates the update vector of reservoir neuron activations
-    def process_input(self, input):
+    #Formula 18 in practicalESN.pdf with an added term for bias, includes teacher forcing
+    #calculates the update vector of reservoir neuron activations and applies it to the reservoir state
+    def process_training_input(self, input):
         '''Function would look something like this:
             self.reservoir = sigmoid(self.Win*input + self.W*self.reservoir + self.Wfb*self.output + self.bias)'''
-        result = np.tanh(np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(self.output)), self.bias))[:][0]
+        result = np.tanh(np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(input)), self.bias))[:][0]
         print(result.shape)
         self.reservoir = self.leaking(result)
 
 
     #formula 7 in practicalESN.pdf
     #combines the reservoir activation with the readout weights to produce an output
+    #CURRENTLY UNUSED
     def get_output(self):
         # does this need the linear regression?
         self.output = self.Wout * self.reservoir
@@ -104,7 +105,8 @@ class ESN:
         return (1-self.leaking_rate)*x_ + self.leaking_rate*x_
     
 
-    #initializes the bias vector, currently unused
+    #initializes the bias vector
+    #CURRENTLY UNUSED
     def init_bias(self):
         pass
 

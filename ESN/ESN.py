@@ -12,21 +12,15 @@ import math
 # Process the input
 # Process the output
 
-connectivity = 1  # percent
+connectivity = 1  # in percentage
 decimals = 3  # weight decimals
-input_scaling = 1
 SD = 0.3
-
-W_Scalar = 1  # voor s/m/l later misschien?
-Win_Scalar = 1  # stond aangegeven in document dat handig zou zijn
-Bias_Scalar = 1
 
 # scalars of order (according to lecture notes herbert)
 small = 0.1
 medium = 1.0
 large = 10.0
 
-Wfb_Scalar = 1
 
 
 class ESN:

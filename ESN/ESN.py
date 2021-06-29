@@ -21,6 +21,10 @@ small = 0.1
 medium = 1.0
 large = 10.0
 
+bias_scale_in = 0.5
+bias_scale_res = 0.5
+bias_scale_fb = 0.5
+
 
 
 class ESN:
@@ -35,9 +39,12 @@ class ESN:
 
         self.reservoir = [0.0 for i in range(reservoir_size)]
         self.W = [[0.0 for i in range(reservoir_size)] for j in range(reservoir_size)]
+        self.reservoir_bias = [0] * reservoir_size
         self.Win = [[0.0 for i in range(input_size)] for j in range(reservoir_size)]
-        self.input_bias = [[0.0 for i in range(input_size)]]
+        #self.input_bias = [[0.0 for i in range(input_size)]] # reservoir size right?
+        self.input_bias = [0.0 for i in range(reservoir_size)]
         self.Wfb = [[0] * output_size] * reservoir_size
+        self.fb_bias = [0] * reservoir_size
         self.bias = [0 for i in range(reservoir_size)]
 
         self.Wout = [[0.0 for i in range(reservoir_size)] for j in range(output_size)]
@@ -46,6 +53,7 @@ class ESN:
         self.init_W()
         self.init_Win()
         self.init_Wfb()
+        self.init_bias()
 
     # Formula 18 in practicalESN.pdf with an added term for bias
     # calculates the update vector of reservoir neuron activations
@@ -53,19 +61,24 @@ class ESN:
     def process_training_input(self, input):
         '''Function would look something like this:
             self.reservoir = sigmoid(self.Win*input + self.W*self.reservoir + self.Wfb*self.output + self.bias)'''
-        result = np.tanh(
+        '''result = np.tanh(
             np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(self.output)),
                    self.bias))[:][0]
         result = np.tanh(
             np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(input)), self.bias))[:][
-            0]
-        print(result.shape)
+            0]'''
+        result = np.tanh(self.Win.dot(input) + self.W.dot(self.reservoir) + self.Wfb.dot(input) + self.bias
+                + self.input_bias + self.reservoir_bias + self.fb_bias)[:][0]
+        #print(result.shape)
         self.reservoir = self.leaking(result)
 
     # formula 7 in practicalESN.pdf
     # combines the reservoir activation with the readout weights to produce an output
-    def get_output(self):
-        # does this need the linear regression?
+    def get_output(self, input):
+        result = np.tanh(self.Win.dot(input) + self.W.dot(self.reservoir) + self.Wfb.dot(self.output) + self.bias
+                + self.input_bias + self.reservoir_bias + self.fb_bias)[:][0]
+        #print(result.shape)
+        self.reservoir = self.leaking(result)
         self.output = self.Wout.dot(self.reservoir)
         return self.output
 
@@ -80,7 +93,7 @@ class ESN:
                     self.W[i][j] = medium * round(random.gauss(0, SD),
                                                   decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
                 # W_Input bias
-            self.bias = medium * np.random.normal(0, SD, None)
+            #self.bias = medium * np.random.normal(0, SD, None)
 
         spectralRad = np.max(np.absolute(np.linalg.eigvals(self.W)))
         if spectralRad > 1:
@@ -104,7 +117,7 @@ class ESN:
 
 
             # W matrix bias
-            self.input_bias[i] = medium * (np.random.normal(0, SD, None))
+            #self.input_bias[i] = medium * (np.random.normal(0, SD, None))
 
         self.Win = np.array(self.Win)
 
@@ -119,12 +132,19 @@ class ESN:
         for i in range(self.reservoir_size):
             for j in range(1, (self.output_size)):
                 self.Wfb[i][j] = medium * (np.random.normal(0, SD, None))
+        self.Wfb = np.array(self.Wfb)
 
     # print the reservoir
     def printW(self):
         for i in range(self.reservoir_size):
             print(self.W[i])
 
+    def init_bias(self):
+        for i in range(self.reservoir_size):
+            self.input_bias[i] = medium * np.random.normal(0, bias_scale_in)
+            self.reservoir_bias[i] = medium * np.random.normal(0, bias_scale_res)
+            self.fb_bias[i] = medium * np.random.normal(0, bias_scale_fb)
+        
 
 # select a file to process and create an ESN
 # currently unused

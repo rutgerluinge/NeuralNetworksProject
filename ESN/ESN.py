@@ -20,6 +20,7 @@ SD = 0.3
 
 W_Scalar = 1 # voor s/m/l later misschien?
 Win_Scalar = 1 # stond aangegeven in document dat handig zou zijn
+Wfb_Scalar = 1
 
 class ESN:
     # Initialize the ESN
@@ -53,12 +54,11 @@ class ESN:
         '''Function would look something like this:
             self.reservoir = sigmoid(self.Win*input + self.W*self.reservoir + self.Wfb*self.output + self.bias)'''
         result = np.tanh(np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(self.output)), self.bias))[:][0]
-        print(result.shape)
         self.reservoir = result
     
     def get_output(self):
         # does this need the linear regression?
-        self.output = self.Wout * self.reservoir
+        self.output = self.Wout.dot(self.reservoir)
         return self.output
 
     def init_W(self):
@@ -88,7 +88,7 @@ class ESN:
 
     def init_Win(self):
         for i in range(self.reservoir_size):
-            for j in range(1,(self.input_size)):
+            for j in range(0,(self.input_size)):
                 self.Win[i][j] = float(Win_Scalar * (np.random.normal(0, SD, None)))
                 # normal distribution mean 0, SE = 0.3, niet zeker over tanh, stond in document iets over
                 # Win_scaler is defined boven in dit script, (global parameter, zoals in document (wat we kunnen veranderen))
@@ -103,8 +103,13 @@ class ESN:
     def init_bias(self):
         pass
 
-    def init_Wfb(self):
 
+    
+    # Voor nu even gecopied van Win om te testen
+    def init_Wfb(self):
+        for i in range(self.reservoir_size):
+            for j in range(1,(self.output_size)):
+                self.Wfb[i][j] = float(Wfb_Scalar * (np.random.normal(0, SD, None)))
         self.Wfb = np.array(self.Wfb)
 
     def printW(self):

@@ -80,7 +80,7 @@ class ESN:
                     self.W[i][j] = medium * round(random.gauss(0, SD),
                                                   decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
                 # W_Input bias
-                self.bias = medium * np.random.normal(0, SD, None)
+            self.bias = medium * np.random.normal(0, SD, None)
 
         spectralRad = np.max(np.absolute(np.linalg.eigvals(self.W)))
         if spectralRad > 1:

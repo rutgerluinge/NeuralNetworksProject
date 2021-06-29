@@ -26,6 +26,7 @@ small = 0.1
 medium = 1.0
 large = 10.0
 
+Wfb_Scalar = 1
 
 class ESN:
     # Initialize the ESN
@@ -35,16 +36,17 @@ class ESN:
         self.reservoir_size = reservoir_size
         self.output_size = output_size
         self.leaking_rate = leaking_rate
-
         # Instantiate the matrixes to all 0 values
+
         self.reservoir = [0.0 for i in range(reservoir_size)]
         self.W = [[0.0 for i in range(reservoir_size)] for j in range(reservoir_size)]
         self.Win = [[0.0 for i in range(input_size)] for j in range(reservoir_size)]
         self.input_bias = [[0.0 for i in range(input_size)]]
         self.Wfb = [[0] * output_size] * reservoir_size
         self.bias = [0 for i in range(reservoir_size)]
-        self.Wout = [[0] * reservoir_size] * output_size
-        self.output = [0] * output_size
+
+        self.Wout = [[0.0 for i in range(reservoir_size)] for j in range(output_size)]
+        self.output = [0 for i in range(output_size)]
 
         self.init_W()
         self.init_Win()
@@ -52,12 +54,14 @@ class ESN:
 
     # Formula 18 in practicalESN.pdf with an added term for bias
     # calculates the update vector of reservoir neuron activations
-    def process_input(self, input):
+
+    def process_training_input(self, input):
         '''Function would look something like this:
             self.reservoir = sigmoid(self.Win*input + self.W*self.reservoir + self.Wfb*self.output + self.bias)'''
         result = np.tanh(
             np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(self.output)),
                    self.bias))[:][0]
+        result = np.tanh(np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(input)), self.bias))[:][0]
         print(result.shape)
         self.reservoir = self.leaking(result)
 
@@ -65,7 +69,7 @@ class ESN:
     # combines the reservoir activation with the readout weights to produce an output
     def get_output(self):
         # does this need the linear regression?
-        self.output = self.Wout * self.reservoir
+        self.output = self.Wout.dot(self.reservoir)
         return self.output
 
     # Generates the reservoir matrix with appropriate size, connectivity and spectral radius
@@ -81,13 +85,14 @@ class ESN:
                 # W_Input bias
                 self.input_bias = medium * np.random.normal(0, SD, None)
 
+        
         spectralRad = np.max(np.absolute(np.linalg.eigvals(self.W)))
         if spectralRad > 1:
             print("!!!ERROR SPECTRAL RADIUS > 1!!!")
 
             self.W = self.W / spectralRad
         elif spectralRad == 0:
-            print("!!!ERROR SPECTRAL RADIUS = 1, MIGHT CONSIDER BIGGER RESERVOIR SIZE!!!")
+            print("!!!ERROR SPECTRAL RADIUS = 0, MIGHT CONSIDER BIGGER RESERVOIR SIZE!!!")
         else:
             self.W = self.W / spectralRad
         self.W = np.array(self.W)
@@ -108,7 +113,7 @@ class ESN:
 
 
         self.Win = np.array(self.Win)
-        print(self.Win)
+
     # Input: ESN, Reservoir state update vector
     # output: reservoir state vector
     # Formula 3 in practicalESN.pdf

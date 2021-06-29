@@ -119,10 +119,10 @@ def esn_smoothed_signalinput(past_window_size, future_window_size = 10, n_runs =
     data = pd.read_csv(
         'Datasets/Correct/usage.csv', 
         parse_dates=True, 
-        header=None,
+        header=0,
         names=['timestamp', 'usage']
         )
-    data['timestamp'] = pd.to_datetime(data['timestamp'])
+    # data['timestamp'] = pd.to_datetime(data['timestamp'])
     
     original = data['usage'].to_numpy()
     # original = original.reshape(original.shape[0], 1)
@@ -182,6 +182,7 @@ def esn_smoothed_signalinput(past_window_size, future_window_size = 10, n_runs =
         
         print(print_format.format('{}/{}'.format(iteration, n_runs), round(duration, 4), round(mse, 4)))
     plt.show()
+    
 if __name__ == '__main__':
     # Train esn on signal length of 2 weeks
     # esn_smoothed_signalinput(6 * 60 * 24 * 7 * 2)

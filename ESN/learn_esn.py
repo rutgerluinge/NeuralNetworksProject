@@ -38,14 +38,9 @@ def train_esn(ESN, data, input_length):
             ESN.process_training_input(data[i])
             state_matrix[i-input_length] = ESN.reservoir
     state_matrix = np.array(state_matrix)
-<<<<<<< HEAD
-    ESN.Wout = get_weights(state_matrix, data[input_length:])
-
-=======
     print(state_matrix.shape)
     ESN.Wout = get_weights(state_matrix, data[input_length+1:])
     
->>>>>>> a278abfa6bcfbfe68f3d63f855a66203afbccb4f
 
 #Input: reservoir states recieved from the ESN and training data, The desired output
 #Output: The fitted weights for the output vector
@@ -68,9 +63,9 @@ def learn_main():
     esn.reservoir = [0.0 for i in range(esn.reservoir_size)]
     for i in range (len(data)):
         if i < 50:
-            esn.process_input(data[i])
+            esn.process_training_input(data[i])
         else:
-            esn.process_input(0)
+            esn.process_training_input(0)
             if i % 10 == 0:
                 print(esn.get_output(), data[i])
 

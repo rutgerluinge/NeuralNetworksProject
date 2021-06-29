@@ -21,12 +21,13 @@ W_Scalar = 1  # voor s/m/l later misschien?
 Win_Scalar = 1  # stond aangegeven in document dat handig zou zijn
 Bias_Scalar = 1
 
-#scalars of order (according to lecture notes herbert)
+# scalars of order (according to lecture notes herbert)
 small = 0.1
 medium = 1.0
 large = 10.0
 
 Wfb_Scalar = 1
+
 
 class ESN:
     # Initialize the ESN
@@ -61,7 +62,9 @@ class ESN:
         result = np.tanh(
             np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(self.output)),
                    self.bias))[:][0]
-        result = np.tanh(np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(input)), self.bias))[:][0]
+        result = np.tanh(
+            np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(input)), self.bias))[:][
+            0]
         print(result.shape)
         self.reservoir = self.leaking(result)
 
@@ -77,15 +80,14 @@ class ESN:
     # based on 3.2.2 to 3.2.4 from practicalESN.pdf
     def init_W(self):
         for i in range(self.reservoir_size):
-            #init Connections and values W matrix:
+            # init Connections and values W matrix:
             for j in range(self.reservoir_size):
                 if random.randint(1, 100) <= connectivity:  # connectivity is set to 1 (0.01 or 1 percent)
                     self.W[i][j] = medium * round(random.gauss(0, SD),
-                                                    decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
+                                                  decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
                 # W_Input bias
-                self.input_bias = medium * np.random.normal(0, SD, None)
+                self.bias = medium * np.random.normal(0, SD, None)
 
-        
         spectralRad = np.max(np.absolute(np.linalg.eigvals(self.W)))
         if spectralRad > 1:
             print("!!!ERROR SPECTRAL RADIUS > 1!!!")
@@ -104,13 +106,12 @@ class ESN:
         for i in range(self.reservoir_size):
             # init Win
             for j in range(self.input_size):
-                self.Win[i][j] = float(medium* (np.random.normal(0, SD, None)))
+                self.Win[i][j] = float(medium * (np.random.normal(0, SD, None)))
                 # normal distribution mean 0, SE = 0.3, niet zeker over tanh, stond in document iets over
                 # Win_scaler is defined boven in dit script, (global parameter, zoals in document (wat we kunnen veranderen))
 
-            #W matrix bias
-            self.bias[i] = medium * (np.random.normal(0,SD, None))
-
+            # W matrix bias
+            self.input_bias[i] = medium * (np.random.normal(0, SD, None))
 
         self.Win = np.array(self.Win)
 
@@ -120,13 +121,11 @@ class ESN:
     def leaking(self, x_):  # x = reservoir state update vector
         return (1 - self.leaking_rate) * x_ + self.leaking_rate * x_
 
-    # initializes the bias vector, currently unused
-    def init_bias(self):
-        pass
-
     # initializes the feedback matrix
     def init_Wfb(self):
-        self.Wfb = np.array(self.Wfb)
+        for i in range(self.reservoir_size):
+            for j in range(1, (self.output_size)):
+                self.Wfb[i][j] = medium * (np.random.normal(0, SD, None))
 
     # print the reservoir
     def printW(self):

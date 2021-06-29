@@ -85,8 +85,8 @@ class ESN:
         spectralRad = np.max(np.absolute(np.linalg.eigvals(self.W)))
         if spectralRad > 1:
             print("!!!ERROR SPECTRAL RADIUS > 1!!!")
+            self.W = self.W / spectralRad   #ensures echo state property
 
-            self.W = self.W / spectralRad
         elif spectralRad == 0:
             print("!!!ERROR SPECTRAL RADIUS = 0, MIGHT CONSIDER BIGGER RESERVOIR SIZE!!!")
         else:
@@ -100,9 +100,8 @@ class ESN:
         for i in range(self.reservoir_size):
             # init Win
             for j in range(self.input_size):
-                self.Win[i][j] = float(medium * (np.random.normal(0, SD, None)))
-                # normal distribution mean 0, SE = 0.3, niet zeker over tanh, stond in document iets over
-                # Win_scaler is defined boven in dit script, (global parameter, zoals in document (wat we kunnen veranderen))
+                self.Win[i][j] = float(medium * (np.random.uniform(0, 1.0, None)))  #uniformly distributed
+
 
             # W matrix bias
             self.input_bias[i] = medium * (np.random.normal(0, SD, None))

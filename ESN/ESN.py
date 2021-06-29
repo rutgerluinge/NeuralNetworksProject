@@ -51,11 +51,6 @@ class ESN:
     def process_training_input(self, input):
         '''Function would look something like this:
             self.reservoir = sigmoid(self.Win*input + self.W*self.reservoir + self.Wfb*self.output + self.bias)'''
-<<<<<<< HEAD
-        result = np.tanh(np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(self.output)), self.bias))[:][0]
-        self.reservoir = result
-    
-=======
         result = np.tanh(np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(input)), self.bias))[:][0]
         print(result.shape)
         self.reservoir = self.leaking(result)
@@ -64,7 +59,6 @@ class ESN:
     #formula 7 in practicalESN.pdf
     #combines the reservoir activation with the readout weights to produce an output
     #CURRENTLY UNUSED
->>>>>>> a278abfa6bcfbfe68f3d63f855a66203afbccb4f
     def get_output(self):
         # does this need the linear regression?
         self.output = self.Wout.dot(self.reservoir)
@@ -117,18 +111,13 @@ class ESN:
     def init_bias(self):
         pass
 
-<<<<<<< HEAD
-
-    
     # Voor nu even gecopied van Win om te testen
     def init_Wfb(self):
         for i in range(self.reservoir_size):
             for j in range(1,(self.output_size)):
                 self.Wfb[i][j] = float(Wfb_Scalar * (np.random.normal(0, SD, None)))
-=======
     #initializes the feedback matrix
     def init_Wfb(self):
->>>>>>> a278abfa6bcfbfe68f3d63f855a66203afbccb4f
         self.Wfb = np.array(self.Wfb)
         
     #print the reservoir

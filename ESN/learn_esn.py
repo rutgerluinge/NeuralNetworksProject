@@ -28,7 +28,7 @@ input-length - the sequence the ESN gets without expecting any results
 
 #Input: an Echo State Network, the training data, and the input_length that is disregarded for training purposes
 #Puts the training data in the generated ESN
-def train_esn(ESN, data, input_length):
+def train_esn(ESN, data, input_length, alpha = 1.0):
     # Run network
     data_points = len(data)
     state_matrix = [None] * (data_points - input_length -1)
@@ -40,14 +40,14 @@ def train_esn(ESN, data, input_length):
             state_matrix[i-input_length] = ESN.reservoir
     state_matrix = np.array(state_matrix)
     print(state_matrix.shape)
-    ESN.Wout = get_weights(state_matrix, data[input_length+1:])
+    ESN.Wout = get_weights(state_matrix, data[input_length+1:], alpha)
     
 
 #Input: reservoir states recieved from the ESN and training data, The desired output
 #Output: The fitted weights for the output vector
 #alpha is the regularization strength used in regression
-def get_weights(state_matrix, teacher):
-    ridge = Ridge(alpha=0.2)
+def get_weights(state_matrix, teacher, alph):
+    ridge = Ridge(alpha=alph)
     ridge.fit(state_matrix, teacher)
     return ridge.coef_
 

@@ -67,17 +67,20 @@ class ESN:
         result = np.tanh(
             np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(input)), self.bias))[:][
             0]'''
-        result = np.tanh(self.Win.dot(input) + self.W.dot(self.reservoir) + self.Wfb.dot(input) + self.bias
-                + self.input_bias + self.reservoir_bias + self.fb_bias)[:][0]
-        #print(result.shape)
+        #result = np.tanh(self.Win.dot(input) + self.W.dot(self.reservoir).reshape(-1,1) + self.Wfb.dot(input) + self.bias)[:][0]
+        result = np.tanh(np.dot(self.Win,input) + np.dot(self.W,self.reservoir).reshape(-1,1) + np.dot(self.Wfb,input) + self.input_bias)[0][:]
+        #print((np.dot(self.Win,input) + np.dot(self.W,self.reservoir) + np.dot(self.Wfb,input) + self.input_bias).shape)
         self.reservoir = self.leaking(result)
 
     # formula 7 in practicalESN.pdf
     # combines the reservoir activation with the readout weights to produce an output
     def get_output(self, input):
-        result = np.tanh(self.Win.dot(input) + self.W.dot(self.reservoir) + self.Wfb.dot(self.output) + self.bias
-                + self.input_bias + self.reservoir_bias + self.fb_bias)[:][0]
-        #print(result.shape)
+        #result = np.tanh(self.Win.dot(input) + self.W.dot(self.reservoir).reshape(-1,1) + self.Wfb.dot(self.output) + self.bias)
+        result = np.tanh(np.dot(self.Win,input) + np.dot(self.W,self.reservoir).reshape(-1,1) + np.dot(self.Wfb,self.output) + self.input_bias)
+        #print((np.add(np.add(np.dot(self.Win,input), np.dot(self.W,self.reservoir).reshape(-1,1)), np.add(np.dot(self.Wfb,input), self.input_bias))).shape)
+
+        result = result[0][:]
+        #print(result)
         self.reservoir = self.leaking(result)
         self.output = self.Wout.dot(self.reservoir)
         return self.output

@@ -44,7 +44,7 @@ class ESN:
         #self.input_bias = [[0.0 for i in range(input_size)]] # reservoir size right?
         self.input_bias = [0.0 for i in range(reservoir_size)]
         self.Wfb = [[0] * output_size] * reservoir_size
-        self.fb_bias = [0] * reservoir_size
+        self.fb_bias = [0 for i in range(reservoir_size)]
         self.bias = [0 for i in range(reservoir_size)]
 
         self.Wout = [[0.0 for i in range(reservoir_size)] for j in range(output_size)]
@@ -90,16 +90,13 @@ class ESN:
             # init Connections and values W matrix:
             for j in range(self.reservoir_size):
                 if random.randint(1, 100) <= connectivity:  # connectivity is set to 1 (0.01 or 1 percent)
-                    self.W[i][j] = medium * round(random.gauss(0, SD),
+                    self.W[i][j] = medium * round(np.random.normal(0, SD),
                                                   decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
-                # W_Input bias
-            #self.bias = medium * np.random.normal(0, SD, None)
 
         spectralRad = np.max(np.absolute(np.linalg.eigvals(self.W)))
         if spectralRad > 1:
             print("!!!ERROR SPECTRAL RADIUS > 1!!!")
             self.W = self.W / spectralRad   #ensures echo state property
-
         elif spectralRad == 0:
             print("!!!ERROR SPECTRAL RADIUS = 0, MIGHT CONSIDER BIGGER RESERVOIR SIZE!!!")
         else:
@@ -113,11 +110,7 @@ class ESN:
         for i in range(self.reservoir_size):
             # init Win
             for j in range(self.input_size):
-                self.Win[i][j] = float(medium * (np.random.uniform(0, 1.0, None)))  #uniformly distributed
-
-
-            # W matrix bias
-            #self.input_bias[i] = medium * (np.random.normal(0, SD, None))
+                self.Win[i][j] = medium * (np.random.uniform(-1.0, 1.0, None))  #uniformly distributed
 
         self.Win = np.array(self.Win)
 
@@ -130,7 +123,7 @@ class ESN:
     # initializes the feedback matrix
     def init_Wfb(self):
         for i in range(self.reservoir_size):
-            for j in range(1, (self.output_size)):
+            for j in range(1, self.output_size):
                 self.Wfb[i][j] = medium * (np.random.normal(0, SD, None))
         self.Wfb = np.array(self.Wfb)
 
@@ -141,9 +134,12 @@ class ESN:
 
     def init_bias(self):
         for i in range(self.reservoir_size):
-            self.input_bias[i] = medium * np.random.normal(0, bias_scale_in)
-            self.reservoir_bias[i] = medium * np.random.normal(0, bias_scale_res)
-            self.fb_bias[i] = medium * np.random.normal(0, bias_scale_fb)
+            self.input_bias[i] = medium * np.random.uniform(-0.5, 0.5, None)
+            self.reservoir_bias[i] = medium * np.random.uniform(-0.5, 0.5, None)
+            self.fb_bias[i] = medium * np.random.uniform(-0.5, 0.5, None)
+
+            # self.reservoir_bias[i] = medium * np.random.uniform(0, bias_scale_res)
+            # self.fb_bias[i] = medium * np.random.normal(0, bias_scale_fb)
         
 
 # select a file to process and create an ESN

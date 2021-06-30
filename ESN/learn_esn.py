@@ -62,13 +62,11 @@ def learn_main():
     save_esn(esn, './esn.txt')
     
     esn.reservoir = [0.0 for i in range(esn.reservoir_size)]
-    for i in range (len(data)):
+    for i in range (len(data)-1):
         if i < 50:
-            esn.process_training_input(data[i])
+            esn.get_output(data[i])
         else:
-            esn.process_training_input(0)
-            if i % 10 == 0:
-                print(esn.get_output(), data[i])
+            print(esn.get_output(data[i]))
 
 
 if __name__ == '__main__':

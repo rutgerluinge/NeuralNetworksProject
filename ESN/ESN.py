@@ -67,17 +67,26 @@ class ESN:
         result = np.tanh(
             np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(input)), self.bias))[:][
             0]'''
-        result = np.tanh(self.Win.dot(input) + self.W.dot(self.reservoir) + self.Wfb.dot(input) + self.bias
-                + self.input_bias + self.reservoir_bias + self.fb_bias)[:][0]
+        result = np.tanh((self.Win.dot(input).reshape(self.reservoir_size,)
+                         + self.W.dot(self.reservoir).reshape(self.reservoir_size,)
+                         + self.Wfb.dot(input).reshape(self.reservoir_size,)
+                         + np.asarray(self.bias).reshape(self.reservoir_size,)
+                         + np.asarray(self.input_bias).reshape(self.reservoir_size,)
+                         + np.asarray(self.reservoir_bias).reshape(self.reservoir_size,)
+                         + np.asarray(self.fb_bias).reshape(self.reservoir_size,))*0.0001)
         #print(result.shape)
-        self.reservoir = self.leaking(result)
+        self.reservoir = self.leaking(result).reshape(self.reservoir_size,)
 
     # formula 7 in practicalESN.pdf
     # combines the reservoir activation with the readout weights to produce an output
     def get_output(self, input):
-        result = np.tanh(self.Win.dot(input) + self.W.dot(self.reservoir) + self.Wfb.dot(self.output) + self.bias
-                + self.input_bias + self.reservoir_bias + self.fb_bias)[:][0]
-        #print(result.shape)
+        result = np.tanh((self.Win.dot(input).reshape(self.reservoir_size,)
+                         + self.W.dot(self.reservoir).reshape(self.reservoir_size,)
+                         + self.Wfb.dot(self.output).reshape(self.reservoir_size,)
+                         + np.asarray(self.bias).reshape(self.reservoir_size,)
+                         + np.asarray(self.input_bias).reshape(self.reservoir_size,)
+                         + np.asarray(self.reservoir_bias).reshape(self.reservoir_size,)
+                         + np.asarray(self.fb_bias).reshape(self.reservoir_size,))*0.0001)
         self.reservoir = self.leaking(result)
         self.output = self.Wout.dot(self.reservoir)
         return self.output

@@ -8,25 +8,17 @@ import random
 
 # HYPERPARAMETERS
 # hyperparameters for parameter optimization
-hyperparameters = {
-    'train_window': [200, 500, 1000, 1500, 2000],
-    'predict_window': [1, 2, 3, 4, 5, 10],
-    'resevoir_size': [500, 1000, 1500, 2000, 3000],
-    'sparsity': [0.005, 0.01, 0.05, 0.1],
-    'rand_seed': 22,
-    'spectral_radius': [0.8, 0.9, 1, 1.1, 1.2, 1.5],
-    'noise': 0.001
-}
+
 hp = {
-    'resevoir_size': 2000,
+    'resevoir_size': 3000,
     'sparsity': 0.05,
     'rand_seed': 21,
-    'spectral_radius': 0.80,
+    'spectral_radius': 0.85,
     'noise': 0.001
 }
 
 # data file
-data_file_name = 'Datasets/Correct/usage.csv'
+data_file_name = 'Datasets/Correct/usage_smoothed_100.csv'
 
 # Data sample frequency (sample interval = 10s)
 sample_frequency = 0.1
@@ -43,7 +35,7 @@ future_window_size = 2
 # Moving average window size
 window_size = 100
 
-shuffle = True
+shuffle = False
 
 n_runs = 50
 future_window_total = n_runs * future_window_size
@@ -114,40 +106,42 @@ def esn_smoothed():
     
     plt.show()
 
-def esn_smoothed_signalinput(past_window_size, future_window_size = 10, n_runs = 10):
+def esn_smoothed_signalinput(past_window_size, future_window_size = 10, train_runs = 50, validation_runs = 10):
     # Load data
-    data = pd.read_csv(
-        'Datasets/Correct/usage.csv', 
-        parse_dates=True, 
-        header=0,
-        names=['timestamp', 'usage']
-        )
-    # data['timestamp'] = pd.to_datetime(data['timestamp'])
-    
-    original = data['usage'].to_numpy()
-    # original = original.reshape(original.shape[0], 1)
+    original = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
     data_length = original.size
     # Subtract window to exclude the part where moving average has to shift with the window 
     past_window_size = past_window_size - window_size
     
     if(shuffle):
-        indices = random.sample(range(past_window_size + window_size, data_length, future_window_size), n_runs * 2)
-        indices_train = indices[ : n_runs]
-        indices_validation = indices[n_runs : ]
+        indices = random.sample(range(past_window_size + window_size, data_length - future_window_size), train_runs + validation_runs)
+        indices_train = indices[ : train_runs]
+        indices_validation = indices[train_runs : ]
     else:
-        indices = range(past_window_size + window_size, future_window_size * n_runs * 2, future_window_size)
-        indices_train = indices[ : n_runs]
-        indices_validation = indices[n_runs : ]
+        indices = range(past_window_size + window_size, past_window_size + window_size + future_window_size * (train_runs + validation_runs), future_window_size)
+        indices_train = indices[ : train_runs]
+        indices_validation = indices[train_runs : ]
     
 
     # Get smoothed data
+    print('Smoothing data')
     smoothed = moving_average(original, (window_size, window_size))
     # smoothed = original
     print_format = '{:<12}' * 3
+
+    # Make modell
+    print('Generating modell')
+    hyper = {
+        'resevoir_size': 3000,
+        'sparsity': 0.05,
+        'rand_seed': 21,
+        'spectral_radius': 0.85,
+        'noise': 0.001
+    }
+    modell = make_modell_2(3000, 0.05, 0.8, 0.005)
     
-    modell = make_modell_2(3000, 0.05, 1, 0.005)
-    
-    print(print_format.format('Run', *(['Time', 'MSE'] * 1)))
+    # Print header
+    print(print_format.format('Run', 'Time', 'MSE'))
     for iteration, i in enumerate(indices_train):
         
         train_window = smoothed[i - past_window_size : i + future_window_size]
@@ -157,13 +151,23 @@ def esn_smoothed_signalinput(past_window_size, future_window_size = 10, n_runs =
         duration = time.time() - time_start
 
         mse = MSE(train_outputs.reshape(train_outputs.shape[0]), train_window[future_window_size : ])
-        # predictions.append((i, train_outputs))
-        plt.figure()
-        plt.suptitle('Train: {}, MSE: {}'.format(iteration, mse))
-        plt.plot(smoothed)
-        plt.plot(range(i - past_window_size + future_window_size, i + future_window_size), train_outputs)
         
-        print(print_format.format('{}/{}'.format(iteration, n_runs), round(duration, 4), round(mse, 4)))
+        print(print_format.format('{}/{}'.format(iteration + 1, train_runs), round(duration, 4), round(mse, 4)))
+        
+        # predictions.append((i, train_outputs))
+        # plt.figure()
+        # plt.suptitle('Validation: {}, MSE: {}\nPast window: {}, future window: {}, sparsity: {}, spectral radius: {}, reservoir size: {}, noise: {}'.format(
+        #     iteration + 1, 
+        #     mse,
+        #     past_window_size,
+        #     future_window_size,
+        #     hyper['sparsity'],
+        #     hyper['spectral_radius'],
+        #     hyper['resevoir_size'],
+        #     hyper['noise']
+        #     ))
+        # plt.plot(smoothed)
+        # plt.plot(range(i - past_window_size + future_window_size, i + future_window_size), train_outputs)
     
     print('Validation')
     for iteration, i in enumerate(indices_validation):
@@ -176,15 +180,116 @@ def esn_smoothed_signalinput(past_window_size, future_window_size = 10, n_runs =
         mse = MSE(validation_outputs.reshape(validation_outputs.shape[0]), validation_window[future_window_size : ])
         # predictions.append((i, train_outputs))
         plt.figure()
-        plt.suptitle('Validation: {}, MSE: {}'.format(iteration, mse))
+        plt.suptitle('Validation: {}, MSE: {}\nPast window: {}, future window: {}, sparsity: {}, spectral radius: {}, reservoir size: {}, noise: {}'.format(
+            iteration + 1, 
+            mse,
+            past_window_size,
+            future_window_size,
+            hyper['sparsity'],
+            hyper['spectral_radius'],
+            hyper['resevoir_size'],
+            hyper['noise']
+            ))
         plt.plot(smoothed)
         plt.plot(range(i - past_window_size + future_window_size, i + future_window_size), validation_outputs)
         
-        print(print_format.format('{}/{}'.format(iteration, n_runs), round(duration, 4), round(mse, 4)))
+        print(print_format.format('{}/{}'.format(iteration + 1, validation_runs), round(duration, 4), round(mse, 4)))
     plt.show()
+
+def esn_online(past_window_size, future_window_size):
     
+    smoothed = np.genfromtxt(data_file_name, skip_header=0, usecols=(0), delimiter=',')
+    
+    # # Get smoothed data
+    # print('Smoothing data')
+    # smoothed = moving_average(original, (window_size, window_size))[window_size : -window_size]
+    data_length = smoothed.size
+    
+    print_format = '{:<12}' * 3
+
+    # Make modell
+    print('Generating modell')
+    hyper = {
+        'resevoir_size': 3000,
+        'sparsity': 0.05,
+        'rand_seed': 21,
+        'spectral_radius': 0.85,
+        'noise': 0.001
+    }
+    modell = make_modell(hyper)
+    
+    print('training model on initial data')
+    # Print header
+    print(print_format.format('Run', 'Time', 'MSE'))
+    train_window = smoothed[ : past_window_size + 1]
+
+    time_start = time.time()
+    train_outputs = modell.fit(train_window[ : past_window_size], train_window[1 : ])
+    duration = time.time() - time_start
+
+    mse = MSE(train_outputs.reshape(train_outputs.shape[0]), train_window[1 : ])
+    print(print_format.format('Initial train', round(duration, 4), round(mse, 4)))
+    for iteration, i in enumerate(range(past_window_size, data_length)):
+        train_window = smoothed[i - past_window_size : i + 1]
+
+        time_start = time.time()
+        train_outputs = modell.fit(train_window[ : 1], train_window[1 : ])
+        duration = time.time() - time_start
+
+        mse = MSE(train_outputs.reshape(train_outputs.shape[0]), train_window[1 : ])
+        
+        print(print_format.format('{}/{}'.format(iteration + 1, '?'), round(duration, 4), round(mse, 4)))
+
+def esn_parameter_optimization():
+    hyper = {
+        'resevoir_size': [500, 1000, 1500, 2000, 3000],
+        'sparsity': [0.005, 0.01, 0.05, 0.1],
+        'rand_seed': 20,
+        'spectral_radius': [0.8, 0.9, 1, 1.1, 1.2, 1.5],
+        'noise': 0.001
+    }
+    n_options = len(hyper['resevoir_size']) * len(hyper['sparsity']) * len(hyper['spectral_radius'])
+
+    smoothed = np.genfromtxt(data_file_name, skip_header=0, usecols=(0), delimiter=',')
+    data_length = smoothed.size
+    
+    # # Get smoothed data
+    # print('Smoothing data')
+    # smoothed = moving_average(original, (window_size, window_size))[window_size : -window_size]
+    data_length = smoothed.size
+    
+    print_format = '{:<12}' * 3
+    
+    print(print_format.format('Time', 'MSE', 'Reservoir size, sparsity, spectral radius'))
+    for option in range(n_options):
+        # Get parameter indices based on the option counter
+        par1 = int(option % len(hyper['resevoir_size']))
+        par2 = int((option / len(hyper['resevoir_size'])) % len(hyper['sparsity']))
+        par3 = int((option / (len(hyper['resevoir_size']) * len(hyper['sparsity']))) % len(hyper['spectral_radius']))
+        
+        # Generate the modell with the current parameters
+        modell = make_modell_2(hyper['resevoir_size'][par1], hyper['sparsity'][par2], hyper['spectral_radius'][par3])
+        
+        train_window = smoothed[ : past_window_size + future_window_size * 2]
+
+        time_start = time.time()
+        train_outputs = modell.fit(train_window[ : past_window_size], train_window[future_window_size : past_window_size + future_window_size])
+        duration = time.time() - time_start
+
+        predict_output = modell.predict(train_window[ future_window_size : past_window_size + future_window_size ])
+        mse = MSE(predict_output.reshape(predict_output.shape[0]), train_window[ 2 * future_window_size : ])
+        
+        print(print_format.format(
+            round(duration, 4), 
+            round(mse, 4),
+            '{} - {} - {}'.format(hyper['resevoir_size'][par1], hyper['sparsity'][par2], hyper['spectral_radius'][par3])
+            ))
+
+
 if __name__ == '__main__':
     # Train esn on signal length of 2 weeks
     # esn_smoothed_signalinput(6 * 60 * 24 * 7 * 2)
-    esn_smoothed_signalinput(past_window_size = 6 * 60, n_runs = 5)
+    # esn_smoothed_signalinput(past_window_size = 6 * 60 * 24)
+    # esn_online(past_window_size = 6 * 60 * 24)
+    esn_parameter_optimization()
     

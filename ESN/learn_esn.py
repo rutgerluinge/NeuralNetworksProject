@@ -32,15 +32,16 @@ def train_esn(ESN, data, input_length, alpha = 1.0):
     # Run network
     data_points = len(data)
     state_matrix = [None] * (data_points - input_length -1)
-    for i in range(data_points-1):
+    #state_matrix = [None] * data_points
+    for i in range(data_points-1): # - 1
         if i < input_length:
-            ESN.process_training_input(data[i])
+            ESN.process_training_input(data[i], 0)
         else:
-            ESN.process_training_input(data[i])
+            ESN.process_training_input(0, data[i])
             state_matrix[i-input_length] = ESN.reservoir
     state_matrix = np.array(state_matrix)
     print(state_matrix.shape)
-    ESN.Wout = get_weights(state_matrix, data[input_length+1:], alpha)
+    ESN.Wout = get_weights(state_matrix, data[input_length+1:], alpha) #data[input_length+1:]
     
 
 #Input: reservoir states recieved from the ESN and training data, The desired output

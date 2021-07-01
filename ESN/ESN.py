@@ -58,7 +58,7 @@ class ESN:
     # Formula 18 in practicalESN.pdf with an added term for bias
     # calculates the update vector of reservoir neuron activations
 
-    def process_training_input(self, input):
+    def process_training_input(self, input, output):
         '''Function would look something like this:
             self.reservoir = sigmoid(self.Win*input + self.W*self.reservoir + self.Wfb*self.output + self.bias)'''
         '''result = np.tanh(
@@ -69,11 +69,9 @@ class ESN:
             0]'''
         result = np.tanh((self.Win.dot(input).reshape(self.reservoir_size,)
                          + self.W.dot(self.reservoir).reshape(self.reservoir_size,)
-                         + self.Wfb.dot(input).reshape(self.reservoir_size,)
+                         + self.Wfb.dot(output).reshape(self.reservoir_size,)
                          + np.asarray(self.bias).reshape(self.reservoir_size,)
-                         + np.asarray(self.input_bias).reshape(self.reservoir_size,)
-                         + np.asarray(self.reservoir_bias).reshape(self.reservoir_size,)
-                         + np.asarray(self.fb_bias).reshape(self.reservoir_size,))*0.0001)
+                         + np.asarray(self.input_bias).reshape(self.reservoir_size,)))
         #print(result.shape)
         self.reservoir = self.leaking(result).reshape(self.reservoir_size,)
 
@@ -84,12 +82,18 @@ class ESN:
                          + self.W.dot(self.reservoir).reshape(self.reservoir_size,)
                          + self.Wfb.dot(self.output).reshape(self.reservoir_size,)
                          + np.asarray(self.bias).reshape(self.reservoir_size,)
-                         + np.asarray(self.input_bias).reshape(self.reservoir_size,)
-                         + np.asarray(self.reservoir_bias).reshape(self.reservoir_size,)
-                         + np.asarray(self.fb_bias).reshape(self.reservoir_size,))*0.0001)
+                         + np.asarray(self.input_bias).reshape(self.reservoir_size,)))
         self.reservoir = self.leaking(result)
         self.output = self.Wout.dot(self.reservoir)
         return self.output
+
+    def give_signal(self, input):
+        result = np.tanh((self.Win.dot(input).reshape(self.reservoir_size,)
+                         + self.W.dot(self.reservoir).reshape(self.reservoir_size,)
+                         + np.asarray(self.bias).reshape(self.reservoir_size,)
+                         + np.asarray(self.input_bias).reshape(self.reservoir_size,)))
+        self.reservoir = self.leaking(result)
+        self.output = self.Wout.dot(self.reservoir)
 
     # Generates the reservoir matrix with appropriate size, connectivity and spectral radius
     # the initial values are randomly generated from a gaussian (normal) distribution
@@ -110,7 +114,7 @@ class ESN:
             print("!!!ERROR SPECTRAL RADIUS = 0, MIGHT CONSIDER BIGGER RESERVOIR SIZE!!!")
         else:
             self.W = self.W / spectralRad
-        self.W = np.array(self.W)
+        self.W = np.array(self.W) * large
 
     # generates the input matrix (or vector in our case) with appropriate size
     # based on 3.2.5 from practicalESN.pdf

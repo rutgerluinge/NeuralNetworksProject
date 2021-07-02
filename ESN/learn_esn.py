@@ -5,7 +5,7 @@ from sklearn.linear_model import Ridge
 import pandas as pd
 import numpy as np
 import gc
-
+import matplotlib.pyplot as plt
 import os
 
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
@@ -54,21 +54,25 @@ def get_weights(state_matrix, teacher, alph):
 
 
 def learn_main():
-    df = pd.read_csv(BASEDIR + '/../datasets/processed/usage_centered.csv')
-    data = df['usage'][:100].copy()
+    df = pd.read_csv(BASEDIR + '/../datasets/processed/processed.csv')
+    data = df['usage'][:5000].copy()
     del df
+    Win_scalar = float(input("Win scalar:"))
+    W_scalar = float(input("W scalar:"))
+    bias_scalar = float(input("Bias scalar:"))
     gc.collect()
-    esn = ESN(1, 1000, 1)
-    train_esn(esn, data, 50)
+    esn = ESN(1, 2000, 1,leaking_rate=1,Wscalar=W_scalar,WinScalar=Win_scalar,Bscalar=bias_scalar)
+    train_esn(esn, data, 2000)
     save_esn(esn, './esn.txt')
-    
+    output = []
     esn.reservoir = [0.0 for i in range(esn.reservoir_size)]
-    for i in range (len(data)-1):
-        if i < 50:
-            esn.get_output(data[i])
-        else:
-            print(esn.get_output(data[i]))
 
+
+    for i in range (len(data)-1):
+        output.append(esn.get_output(data[i]))
+
+    plt.plot(data), plt.plot(output)
+    plt.show()
 
 if __name__ == '__main__':
     learn_main()

@@ -26,10 +26,9 @@ bias_scale_res = 0.5
 bias_scale_fb = 0.5
 
 
-
 class ESN:
     # Initialize the ESN
-    def __init__(self, input_size, reservoir_size, output_size, leaking_rate=1):
+    def __init__(self, input_size, reservoir_size, output_size, leaking_rate=1, Wscalar=1, WinScalar=1,Bscalar=1):
         # Set the different sizes
         self.input_size = input_size
         self.reservoir_size = reservoir_size
@@ -37,18 +36,19 @@ class ESN:
         self.leaking_rate = leaking_rate
         # Instantiate the matrixes to all 0 values
 
-        self.reservoir = [0.0 for i in range(reservoir_size)]
         self.W = [[0.0 for i in range(reservoir_size)] for j in range(reservoir_size)]
-        self.reservoir_bias = [0] * reservoir_size
         self.Win = [[0.0 for i in range(input_size)] for j in range(reservoir_size)]
-        #self.input_bias = [[0.0 for i in range(input_size)]] # reservoir size right?
-        self.input_bias = [0.0 for i in range(reservoir_size)]
-        self.Wfb = [[0] * output_size] * reservoir_size
-        self.fb_bias = [0 for i in range(reservoir_size)]
-        self.bias = [0 for i in range(reservoir_size)]
-
+        self.Wfb = [[0.0 for i in range(output_size)] for j in range(reservoir_size)]
         self.Wout = [[0.0 for i in range(reservoir_size)] for j in range(output_size)]
-        self.output = [0 for i in range(output_size)]
+
+        self.reservoir = [0.0 for i in range(reservoir_size)]
+
+        self.input_bias = np.zeros(reservoir_size)
+        self.output = np.zeros(output_size)
+
+        self.Wsc = Wscalar
+        self.Winsc = WinScalar
+        self.Bssc = Bscalar
 
         self.init_W()
         self.init_Win()
@@ -67,31 +67,29 @@ class ESN:
         result = np.tanh(
             np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(input)), self.bias))[:][
             0]'''
-        result = np.tanh((self.Win.dot(input).reshape(self.reservoir_size,)
-                         + self.W.dot(self.reservoir).reshape(self.reservoir_size,)
-                         + self.Wfb.dot(output).reshape(self.reservoir_size,)
-                         + np.asarray(self.bias).reshape(self.reservoir_size,)
-                         + np.asarray(self.input_bias).reshape(self.reservoir_size,)))
-        #print(result.shape)
-        self.reservoir = self.leaking(result).reshape(self.reservoir_size,)
+        result = np.tanh((self.Win.dot(input).reshape(self.reservoir_size, )
+                          + self.W.dot(self.reservoir).reshape(self.reservoir_size, )
+                          + self.Wfb.dot(output).reshape(self.reservoir_size, )
+                          + np.asarray(self.input_bias).reshape(self.reservoir_size, )))
+        # print(result.shape)
+        self.reservoir = self.leaking(result).reshape(self.reservoir_size, )
 
     # formula 7 in practicalESN.pdf
     # combines the reservoir activation with the readout weights to produce an output
     def get_output(self, input):
-        result = np.tanh((self.Win.dot(input).reshape(self.reservoir_size,)
-                         + self.W.dot(self.reservoir).reshape(self.reservoir_size,)
-                         + self.Wfb.dot(self.output).reshape(self.reservoir_size,)
-                         + np.asarray(self.bias).reshape(self.reservoir_size,)
-                         + np.asarray(self.input_bias).reshape(self.reservoir_size,)))
+        result = np.tanh((self.Win.dot(input).reshape(self.reservoir_size, )
+                          + self.W.dot(self.reservoir).reshape(self.reservoir_size, )
+                          + self.Wfb.dot(self.output).reshape(self.reservoir_size, )
+                          + np.asarray(self.input_bias).reshape(self.reservoir_size, )))
+
         self.reservoir = self.leaking(result)
         self.output = self.Wout.dot(self.reservoir)
         return self.output
 
     def give_signal(self, input):
-        result = np.tanh((self.Win.dot(input).reshape(self.reservoir_size,)
-                         + self.W.dot(self.reservoir).reshape(self.reservoir_size,)
-                         + np.asarray(self.bias).reshape(self.reservoir_size,)
-                         + np.asarray(self.input_bias).reshape(self.reservoir_size,)))
+        result = np.tanh((self.Win.dot(input).reshape(self.reservoir_size, )
+                          + self.W.dot(self.reservoir).reshape(self.reservoir_size, )
+                          + np.asarray(self.input_bias).reshape(self.reservoir_size, )))
         self.reservoir = self.leaking(result)
         self.output = self.Wout.dot(self.reservoir)
 
@@ -103,18 +101,17 @@ class ESN:
             # init Connections and values W matrix:
             for j in range(self.reservoir_size):
                 if random.randint(1, 100) <= connectivity:  # connectivity is set to 1 (0.01 or 1 percent)
-                    self.W[i][j] = medium * round(np.random.normal(0, SD),
+                    self.W[i][j] =round(np.random.normal(0, SD),
                                                   decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
 
         spectralRad = np.max(np.absolute(np.linalg.eigvals(self.W)))
-        if spectralRad > 1:
-            print("!!!ERROR SPECTRAL RADIUS > 1!!!")
-            self.W = self.W / spectralRad   #ensures echo state property
-        elif spectralRad == 0:
+
+        if spectralRad == 0:
             print("!!!ERROR SPECTRAL RADIUS = 0, MIGHT CONSIDER BIGGER RESERVOIR SIZE!!!")
         else:
             self.W = self.W / spectralRad
-        self.W = np.array(self.W) * large
+
+        self.W = np.array(self.W) * self.Wsc
 
     # generates the input matrix (or vector in our case) with appropriate size
     # based on 3.2.5 from practicalESN.pdf
@@ -123,10 +120,10 @@ class ESN:
         for i in range(self.reservoir_size):
             # init Win
             for j in range(self.input_size):
-                self.Win[i][j] = medium * (np.random.uniform(-1.0, 1.0, None))  #uniformly distributed
+                self.Win[i][j] = (np.random.uniform(-1.0, 1.0, None))  # uniformly distributed
 
-        self.Win = np.array(self.Win)
-
+        self.Win = np.array(self.Win) * self.Winsc
+        print(self.Win)
     # Input: ESN, Reservoir state update vector
     # output: reservoir state vector
     # Formula 3 in practicalESN.pdf
@@ -136,8 +133,8 @@ class ESN:
     # initializes the feedback matrix
     def init_Wfb(self):
         for i in range(self.reservoir_size):
-            for j in range(1, self.output_size):
-                self.Wfb[i][j] = medium * (np.random.normal(0, SD, None))
+            for j in range(self.output_size):
+                self.Wfb[i][j] = small * (np.random.normal(0, SD, None))
         self.Wfb = np.array(self.Wfb)
 
     # print the reservoir
@@ -147,13 +144,8 @@ class ESN:
 
     def init_bias(self):
         for i in range(self.reservoir_size):
-            self.input_bias[i] = medium * np.random.uniform(-0.5, 0.5, None)
-            self.reservoir_bias[i] = medium * np.random.uniform(-0.5, 0.5, None)
-            self.fb_bias[i] = medium * np.random.uniform(-0.5, 0.5, None)
-
-            # self.reservoir_bias[i] = medium * np.random.uniform(0, bias_scale_res)
-            # self.fb_bias[i] = medium * np.random.normal(0, bias_scale_fb)
-        
+            self.input_bias[i] = small * np.random.uniform(-0.5, 0.5, None)
+        self.input_bias * self.Bssc
 
 # select a file to process and create an ESN
 # currently unused

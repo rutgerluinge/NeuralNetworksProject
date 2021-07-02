@@ -12,18 +12,17 @@ import math
 # Process the input
 # Process the output
 
-connectivity = 1  # in percentage
+connectivity = 5  # in percentage * 10
 decimals = 3  # weight decimals
 SD = 0.3
 
 # scalars of order (according to lecture notes herbert)
 small = 0.1
 medium = 1.0
+medium_large = 3
 large = 10.0
 
 bias_scale_in = 0.5
-bias_scale_res = 0.5
-bias_scale_fb = 0.5
 
 
 
@@ -102,7 +101,7 @@ class ESN:
         for i in range(self.reservoir_size):
             # init Connections and values W matrix:
             for j in range(self.reservoir_size):
-                if random.randint(1, 100) <= connectivity:  # connectivity is set to 1 (0.01 or 1 percent)
+                if random.randint(1, 1000) <= connectivity:  # connectivity is set to 1 (0.01 or 1 percent)
                     self.W[i][j] = medium * round(np.random.normal(0, SD),
                                                   decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
 
@@ -114,7 +113,7 @@ class ESN:
             print("!!!ERROR SPECTRAL RADIUS = 0, MIGHT CONSIDER BIGGER RESERVOIR SIZE!!!")
         else:
             self.W = self.W / spectralRad
-        self.W = np.array(self.W) * large
+        self.W = np.array(self.W) * medium_large
 
     # generates the input matrix (or vector in our case) with appropriate size
     # based on 3.2.5 from practicalESN.pdf
@@ -135,10 +134,11 @@ class ESN:
 
     # initializes the feedback matrix
     def init_Wfb(self):
-        for i in range(self.reservoir_size):
-            for j in range(1, self.output_size):
+        self.Wfb = self.Win
+        '''for i in range(self.reservoir_size):
+            for j in range(self.output_size):
                 self.Wfb[i][j] = medium * (np.random.normal(0, SD, None))
-        self.Wfb = np.array(self.Wfb)
+        self.Wfb = np.array(self.Wfb)'''
 
     # print the reservoir
     def printW(self):
@@ -148,8 +148,8 @@ class ESN:
     def init_bias(self):
         for i in range(self.reservoir_size):
             self.input_bias[i] = medium * np.random.uniform(-0.5, 0.5, None)
-            self.reservoir_bias[i] = medium * np.random.uniform(-0.5, 0.5, None)
-            self.fb_bias[i] = medium * np.random.uniform(-0.5, 0.5, None)
+            #self.reservoir_bias[i] = medium * np.random.uniform(-0.5, 0.5, None)
+            #self.fb_bias[i] = medium * np.random.uniform(-0.5, 0.5, None)
 
             # self.reservoir_bias[i] = medium * np.random.uniform(0, bias_scale_res)
             # self.fb_bias[i] = medium * np.random.normal(0, bias_scale_fb)

@@ -1,7 +1,7 @@
 from ESN import ESN
 from save_esn import save_esn
 
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import RidgeCV, Ridge
 import pandas as pd
 import numpy as np
 import gc
@@ -28,20 +28,28 @@ input-length - the sequence the ESN gets without expecting any results
 
 #Input: an Echo State Network, the training data, and the input_length that is disregarded for training purposes
 #Puts the training data in the generated ESN
-def train_esn(ESN, data, input_length, alpha = 1.0):
+def train_esn(ESN, data, input_length, prediction_length, alpha = 1.0):
     # Run network
     data_points = len(data)
-    state_matrix = [None] * (data_points - input_length -1)
+    #state_matrix = [None] * (data_points - input_length -1)
     #state_matrix = [None] * data_points
+    state_matrix = []
+    train_data = []
+    x = 0
     for i in range(data_points-1): # - 1
-        if i < input_length:
+        if x < input_length:
             ESN.process_training_input(data[i], 0)
         else:
             ESN.process_training_input(0, data[i])
-            state_matrix[i-input_length] = ESN.reservoir
+            #state_matrix[i-input_length] = ESN.reservoir
+            state_matrix.append(ESN.reservoir)
+            train_data.append(data[i])
+        if x >= prediction_length + input_length:
+            x = 0
+        x += 1
     state_matrix = np.array(state_matrix)
     print(state_matrix.shape)
-    ESN.Wout = get_weights(state_matrix, data[input_length+1:], alpha) #data[input_length+1:]
+    ESN.Wout = get_weights(state_matrix, train_data, alpha) #data[input_length+1:]
     
 
 #Input: reservoir states recieved from the ESN and training data, The desired output

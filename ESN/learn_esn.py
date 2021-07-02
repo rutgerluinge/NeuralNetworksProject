@@ -70,7 +70,7 @@ def learn_main():
 
     for i in range (len(data)-1):
         output.append(esn.get_output(data[i]))
-
+    print("done")
     plt.plot(data), plt.plot(output)
     plt.show()
 

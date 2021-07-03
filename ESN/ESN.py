@@ -12,7 +12,7 @@ import math
 # Process the input
 # Process the output
 
-connectivity = 1  # in percentage
+connectivity = 2  # in percentage
 decimals = 3  # weight decimals
 SD = 0.3
 

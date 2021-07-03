@@ -56,6 +56,8 @@ def get_weights(state_matrix, teacher, alph):
 def learn_main():
     df = pd.read_csv(BASEDIR + '/../datasets/processed/processed.csv')
     data = df['usage'][:5000].copy()
+    # data2 = df['usage'][5000:].copy()
+
     del df
     Win_scalar = float(input("Win scalar:"))
     W_scalar = float(input("W scalar:"))
@@ -63,7 +65,6 @@ def learn_main():
     gc.collect()
     esn = ESN(1, 2000, 1,leaking_rate=1,Wscalar=W_scalar,WinScalar=Win_scalar,Bscalar=bias_scalar)
     train_esn(esn, data, 2000)
-    #save_esn(esn, './esn.txt')
     output = []
     esn.reservoir = [0.0 for i in range(esn.reservoir_size)]
 
@@ -71,6 +72,10 @@ def learn_main():
     for i in range (len(data)-1):
         output.append(esn.get_output(data[i]))
     print("done")
+    output2 = []
+    # for i in range(len(data2)-1):
+    #     output.append(esn.get_output(data2[i]))
+
     plt.plot(data), plt.plot(output)
     plt.show()
 

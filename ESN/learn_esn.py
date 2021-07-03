@@ -35,9 +35,9 @@ def train_esn(ESN, data, input_length, alpha = 1.0):
     #state_matrix = [None] * data_points
     for i in range(data_points-1): # - 1
         if i < input_length:
-            ESN.process_training_input(data[i], 0)
+            ESN.process_training_input(data[i])
         else:
-            ESN.process_training_input(0, data[i])
+            ESN.process_training_input(data[i])
             state_matrix[i-input_length] = ESN.reservoir
     state_matrix = np.array(state_matrix)
     print(state_matrix.shape)
@@ -54,29 +54,34 @@ def get_weights(state_matrix, teacher, alph):
 
 
 def learn_main():
-    df = pd.read_csv(BASEDIR + '/../datasets/processed/processed.csv')
+    df = pd.read_csv(BASEDIR + '/../datasets/processed/processed_full.csv')
     data = df['usage'][:5000].copy()
-    # data2 = df['usage'][5000:].copy()
-
+    data2 = df['usage'][:10000].copy()
+    data3 = df['usage'][:15000].copy()
     del df
     Win_scalar = float(input("Win scalar:"))
     W_scalar = float(input("W scalar:"))
     bias_scalar = float(input("Bias scalar:"))
     gc.collect()
-    esn = ESN(1, 2000, 1,leaking_rate=1,Wscalar=W_scalar,WinScalar=Win_scalar,Bscalar=bias_scalar)
+    esn = ESN(1, 4000, 1,leaking_rate=1,Wscalar=W_scalar,WinScalar=Win_scalar,Bscalar=bias_scalar)
     train_esn(esn, data, 2000)
     output = []
     esn.reservoir = [0.0 for i in range(esn.reservoir_size)]
 
 
-    for i in range (len(data)-1):
-        output.append(esn.get_output(data[i]))
+    for i in range (len(data3)-1):
+        if i< len(data):
+            output.append(esn.get_output(data[i]))
+        elif i<len(data2):
+            output.append(esn.get_output(data2[i]))
+        else:
+            output.append(esn.get_output(esn.output))
     print("done")
     output2 = []
     # for i in range(len(data2)-1):
     #     output.append(esn.get_output(data2[i]))
 
-    plt.plot(data), plt.plot(output)
+    plt.plot(data3), plt.plot(output)
     plt.show()
 
 if __name__ == '__main__':

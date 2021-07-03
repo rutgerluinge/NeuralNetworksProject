@@ -38,7 +38,6 @@ class ESN:
 
         self.W = [[0.0 for i in range(reservoir_size)] for j in range(reservoir_size)]
         self.Win = [[0.0 for i in range(input_size)] for j in range(reservoir_size)]
-        self.Wfb = [[0.0 for i in range(output_size)] for j in range(reservoir_size)]
         self.Wout = [[0.0 for i in range(reservoir_size)] for j in range(output_size)]
 
         self.reservoir = [0.0 for i in range(reservoir_size)]
@@ -52,25 +51,16 @@ class ESN:
 
         self.init_W()
         self.init_Win()
-        self.init_Wfb()
         self.init_bias()
 
     # Formula 18 in practicalESN.pdf with an added term for bias
     # calculates the update vector of reservoir neuron activations
 
-    def process_training_input(self, input, output):
-        '''Function would look something like this:
-            self.reservoir = sigmoid(self.Win*input + self.W*self.reservoir + self.Wfb*self.output + self.bias)'''
-        '''result = np.tanh(
-            np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(self.output)),
-                   self.bias))[:][0]
-        result = np.tanh(
-            np.add(np.add(np.add(self.Win.dot(input), self.W.dot(self.reservoir)), self.Wfb.dot(input)), self.bias))[:][
-            0]'''
+    def process_training_input(self, input):
         result = np.tanh((self.Win.dot(input).reshape(self.reservoir_size, )
                           + self.W.dot(self.reservoir).reshape(self.reservoir_size, )
-                          + self.Wfb.dot(output).reshape(self.reservoir_size, )
-                          + np.asarray(self.input_bias).reshape(self.reservoir_size, )))
+                          #+ np.asarray(self.input_bias).reshape(self.reservoir_size, )
+                          ))
         # print(result.shape)
         self.reservoir = self.leaking(result).reshape(self.reservoir_size, )
 
@@ -79,8 +69,8 @@ class ESN:
     def get_output(self, input):
         result = np.tanh((self.Win.dot(input).reshape(self.reservoir_size, )
                           + self.W.dot(self.reservoir).reshape(self.reservoir_size, )
-                          + self.Wfb.dot(self.output).reshape(self.reservoir_size, )
-                          + np.asarray(self.input_bias).reshape(self.reservoir_size, )))
+                          #+ np.asarray(self.input_bias).reshape(self.reservoir_size, )
+                          ))
 
         self.reservoir = self.leaking(result)
         self.output = self.Wout.dot(self.reservoir)
@@ -130,12 +120,6 @@ class ESN:
     def leaking(self, x_):  # x = reservoir state update vector
         return (1 - self.leaking_rate) * x_ + self.leaking_rate * x_
 
-    # initializes the feedback matrix
-    def init_Wfb(self):
-        for i in range(self.reservoir_size):
-            for j in range(self.output_size):
-                self.Wfb[i][j] = small * (np.random.normal(0, SD, None))
-        self.Wfb = np.array(self.Wfb)
 
     # print the reservoir
     def printW(self):

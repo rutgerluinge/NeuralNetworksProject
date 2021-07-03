@@ -12,7 +12,7 @@ import math
 # Process the input
 # Process the output
 
-connectivity = 2  # in percentage
+connectivity = 1  # in percentage
 decimals = 3  # weight decimals
 SD = 0.3
 
@@ -28,8 +28,9 @@ bias_scale_fb = 0.5
 
 class ESN:
     # Initialize the ESN
-    def __init__(self, input_size, reservoir_size, output_size, leaking_rate=1, Wscalar=1, WinScalar=1,Bscalar=1):
+    def __init__(self, input_size, reservoir_size, output_size, leaking_rate, Wscalar, WinScalar):
         # Set the different sizes
+        self.Bssc = 1
         self.input_size = input_size
         self.reservoir_size = reservoir_size
         self.output_size = output_size
@@ -47,7 +48,6 @@ class ESN:
 
         self.Wsc = Wscalar
         self.Winsc = WinScalar
-        self.Bssc = Bscalar
 
         self.init_W()
         self.init_Win()
@@ -73,7 +73,8 @@ class ESN:
                           ))
 
         self.reservoir = self.leaking(result)
-        self.output = self.Wout.dot(self.reservoir)
+        self.output = np.dot(self.Wout,self.reservoir)
+        # self.output = self.Wout.dot(self.reservoir)
         return self.output
 
     def give_signal(self, input):
@@ -91,11 +92,10 @@ class ESN:
             # init Connections and values W matrix:
             for j in range(self.reservoir_size):
                 if random.randint(1, 100) <= connectivity:  # connectivity is set to 1 (0.01 or 1 percent)
-                    self.W[i][j] =round(np.random.normal(0, SD),
-                                                  decimals)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
+                    self.W[i][j] =np.random.normal(0, SD)  # gaussian distribution, first digit is mean, 2nd standard deviation (not sure bout that)
 
         spectralRad = np.max(np.absolute(np.linalg.eigvals(self.W)))
-
+        print("spectral rad1: ",spectralRad)
         if spectralRad == 0:
             print("!!!ERROR SPECTRAL RADIUS = 0, MIGHT CONSIDER BIGGER RESERVOIR SIZE!!!")
         else:

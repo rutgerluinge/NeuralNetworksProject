@@ -63,7 +63,7 @@ def learn_main():
     gc.collect()
     esn = ESN(1, 2000, 1,leaking_rate=1,Wscalar=W_scalar,WinScalar=Win_scalar,Bscalar=bias_scalar)
     train_esn(esn, data, 2000)
-    save_esn(esn, './esn.txt')
+    #save_esn(esn, './esn.txt')
     output = []
     esn.reservoir = [0.0 for i in range(esn.reservoir_size)]
 

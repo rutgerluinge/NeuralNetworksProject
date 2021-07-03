@@ -123,7 +123,7 @@ class ESN:
                 self.Win[i][j] = (np.random.uniform(-1.0, 1.0, None))  # uniformly distributed
 
         self.Win = np.array(self.Win) * self.Winsc
-        print(self.Win)
+        #print(self.Win)
     # Input: ESN, Reservoir state update vector
     # output: reservoir state vector
     # Formula 3 in practicalESN.pdf
@@ -132,10 +132,11 @@ class ESN:
 
     # initializes the feedback matrix
     def init_Wfb(self):
-        for i in range(self.reservoir_size):
+        self.Wfb = self.Win
+        '''for i in range(self.reservoir_size):
             for j in range(self.output_size):
-                self.Wfb[i][j] = small * (np.random.normal(0, SD, None))
-        self.Wfb = np.array(self.Wfb)
+                self.Wfb[i][j] = medium * (np.random.normal(0, SD, None))
+        self.Wfb = np.array(self.Wfb)'''
 
     # print the reservoir
     def printW(self):
@@ -144,7 +145,7 @@ class ESN:
 
     def init_bias(self):
         for i in range(self.reservoir_size):
-            self.input_bias[i] = small * np.random.uniform(-0.5, 0.5, None)
+            self.input_bias[i] = medium * np.random.uniform(-0.5, 0.5, None)
         self.input_bias * self.Bssc
 
 # select a file to process and create an ESN

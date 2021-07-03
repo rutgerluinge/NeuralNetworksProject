@@ -40,7 +40,6 @@ def train_esn(ESN, data, input_length, alpha = 1.0):
             ESN.process_training_input(data[i])
             state_matrix[i-input_length] = ESN.reservoir
     state_matrix = np.array(state_matrix)
-    print(state_matrix.shape)
     ESN.Wout = get_weights(state_matrix, data[input_length+1:], alpha) #data[input_length+1:]
     
 

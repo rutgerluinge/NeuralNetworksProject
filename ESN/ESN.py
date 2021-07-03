@@ -113,7 +113,7 @@ class ESN:
                 self.Win[i][j] = (np.random.uniform(-1.0, 1.0, None))  # uniformly distributed
 
         self.Win = np.array(self.Win) * self.Winsc
-        print(self.Win)
+        #print(self.Win)
     # Input: ESN, Reservoir state update vector
     # output: reservoir state vector
     # Formula 3 in practicalESN.pdf

@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import datetime
 
-data_file_name = 'Traindata/usage_05-04-2021_12-04-2021.csv'
+data_file_name = 'Datasets/Correct/usage_2021-04-12_2021-04-19.csv'
 
 data_set = np.genfromtxt(
     data_file_name, 

@@ -1,4 +1,4 @@
-from pyESN import ESN
+from ESN.ReferenceScripts.pyESN import ESN
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -7,20 +7,19 @@ import pickle
 import random
 import time
 import os
+import copy
 from tools import *
 
-data_file_name = 'Datasets/Correct/usage_2021-04-12_2021-04-19.csv'
-model_file_name = 'Models/ESN-test-1500'
-das_modell = None
-model_exists = True
+data_file_name = 'Datasets/Correct/usage.csv'
 
 hp = {
     'resevoir_size': 2000,
-    'sparsity': 0.05,
-    'rand_seed': 21,
-    'spectral_radius': 0.60,
+    'sparsity': 0.005,
+    'rand_seed': 20,
+    'spectral_radius': 1.2,
     'noise': 0.001
 }
+
 
 # Start training after n samples, to prevent filter oscillations at start to influence training
 # 30 min = 30 * 6 samples
@@ -43,28 +42,26 @@ validation = 0.1
 # frequency of samples: 1 / sample interval = 1/10 = 0.1
 samplerate = 0.1
 
-def make_modell():
-    das_modell = ESN(
-        n_inputs = 1,
-        n_outputs = 1,
-        n_reservoir = hp['resevoir_size'],
-        sparsity = hp['sparsity'],
-        random_state = hp['rand_seed'],
-        spectral_radius = hp['spectral_radius'],
-        noise = hp['noise'],
-        silent = True
-    )
-    return das_modell
+def train_predict(hyper: dict, train_input, train_teacher, predict_input, predict_teacher):
+    modell = make_modell(hyper)
+    
+    time_start = time.time()
+    train_outputs = modell.fit(train_input, train_teacher)
+    duration = round(time.time() - time_start, 4)
+
+    prediction = modell.predict(predict_input)
+    mse = round(MSE(prediction, predict_teacher), 4)
+    return (mse, duration, prediction)
 
 def esn_day_comparison():
     data_week = pd.read_csv(
-        data_file_name, 
+        'Datasets/Correct/usage_2021-04-12_2021-04-19.csv', 
         parse_dates=True, 
         header=None,
-        names=['timestamp', 'usage']
+        names=['date', 'usage']
         )
-    data_week['timestamp'] = pd.to_datetime(data_week['timestamp'])
-    data = data_week.loc[data_week['timestamp'].dt.weekday == 5]
+    data_week['date'] = pd.to_datetime(data_week['date'])
+    data = data_week.loc[data_week['date'].dt.weekday == 5]
     
     del data_week
     
@@ -310,20 +307,20 @@ def esn_day_comparison():
 
     breakpoint
 
-def esn_day_average():
+# Compare different window sizes for averaging
+def day_average():
     data_week = pd.read_csv(
         data_file_name, 
         parse_dates=True, 
         header=None,
-        names=['timestamp', 'usage']
+        names=['date', 'usage']
         )
-    data_week['timestamp'] = pd.to_datetime(data_week['timestamp'])
-    data = data_week.loc[data_week['timestamp'].dt.weekday == 5]
+    data_week['date'] = pd.to_datetime(data_week['date'])
+    data = data_week.loc[data_week['date'].dt.weekday == 5]
     data = data['usage'].to_numpy()
 
     del data_week
     # Windows for averaging (min):
-    # 
     windows = np.array([60 * 6, 20 * 6, 10 * 6, 5 * 6, 2 * 6, 1 * 6]) * 10
     
     plt.figure()
@@ -346,7 +343,6 @@ def esn_differenced():
     # global past_window_size
     # past_window_size += 1
     
-    das_modell = make_modell()
     # data_file = open(data_file_name, 'r')
     # data_reader = csv.reader(data_file)
     data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
@@ -358,6 +354,7 @@ def esn_differenced():
     prediction_chain = np.empty((0))
     
     for i in indices_train:
+        das_modell = make_modell(hp)
         train_inputs_raw = data_set[i - past_window_size - 1 : i]
         # Normalize ze data
         ref, train_inputs = difference(train_inputs_raw)
@@ -388,11 +385,11 @@ def esn_differenced():
         )
     plt.show()
 
-def esn_filtered_lowpass():
+def esn_filtered_lowpass(cutoff = 1 / (10 * 60)):
     das_modell = make_modell()
 
     data = np.genfromtxt(data_file_name, skip_header=0, usecols=(1), delimiter=',')
-    data = butter_lowpass(data, 1 / (10 * 60), samplerate)
+    data = butter_lowpass(data, cutoff, samplerate)
     train_size = int((len(data) - offset) / 2)
     train = data[offset : train_size + offset]
     real = data[train_size + offset : ]
@@ -486,13 +483,12 @@ def esn_filtered_downsampled():
     
     das_modell = make_modell()
     
-    data = np.genfromtxt(data_file_name, skip_header=0, usecols=(1), delimiter=',')
+    data = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
     # 1 / 10 hrs cutoff frequency
     data = butter_lowpass(data, 1 / (10 * 60 * 6 * 10), samplerate)
     # down sample with scale value to get an array with sample interval = scale * old sample interval
     data = data[ : : scale]
     
-    # 
     prediction_chain = np.empty((0))
     
     indices_train = range(past_window_size, past_window_size + future_window_total, future_window_size)
@@ -528,11 +524,12 @@ def esn_filtered_downsampled():
 
 def esn_filtered_downsampled_normalized():
     # Downsampling - 60 second interval between samples = 6 * interval
+    # 2 * 6 = 2 minutes
     scale = 12
     
-    das_modell = make_modell()
+    das_modell = make_modell(hp)
     
-    data = np.genfromtxt(data_file_name, skip_header=0, usecols=(1), delimiter=',')
+    data = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
     # filter
     data = butter_lowpass(data, 1 / (30 * 60), samplerate)
     # down sample
@@ -575,313 +572,303 @@ def esn_filtered_downsampled_normalized():
         )
     plt.show()
 
-def esn_normalized():
-    # global validation
-    das_modell = make_modell()
-    
-    # data_file = open(data_file_name, 'r')
-    # data_reader = csv.reader(data_file)
-
+def esn_normalized(past_window_size, future_window_size = 2, train_runs = 50, offset = 50, shuffle = False):
+    # Load data
     data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
 
-    # index_range = (data_set.size - past_window_size) - future_window_size
-    # if(shuffle):
-    #     indices = random.sample(range(past_window_size, data_set.size - future_window_size), index_range)
-    # else:
-    indices_train = range(past_window_size, past_window_size + future_window_total, future_window_size)
+    # Shuffle indices for more randomization in predictions, or not to get a more readable graph
+    if(shuffle):
+        indices_train = random.sample(range(past_window_size + 1 + offset, data_set.size - future_window_size), train_runs)
+    else:
+        indices_train = range(past_window_size + 1 + offset, past_window_size + offset + train_runs * future_window_size, future_window_size)
     
-    # train_fraction = len(indices) - int(len(indices) * validation)
-
-    # indices_train = indices[0 : train_fraction]
-    # indices_validation = indices[train_fraction : -1]
-    # del indices
-
-    train_size = len(indices_train)
-    cnt = 0
-    breakpoint
-
-
-    prediction_chain = np.empty((0))
+    prediction_chain = np.zeros((train_runs * future_window_size, 1))
     
-    for i in indices_train:
-        train_inputs = data_set[i - past_window_size : i]
+    predictions = []
+    mean_mse = 0
+    
+    for run, i in enumerate(indices_train):
+        # train_inputs = data_set[i - past_window_size - 1 : i]
         # Normalize ze data
-        ref, train_inputs = normalize(train_inputs)
+        ref, section = normalize(data_set[i - past_window_size - 1 : i + future_window_size])
         
-        time_start = time.time()
-        # train_outputs = das_modell.fit(train_inputs, data_set[i - past_window_size + future_window_size : i + future_window_size])
-        train_outputs = das_modell.fit(np.ones(past_window_size), train_inputs)
-        time_end = time.time()
-        # make prediction
-        prediction = das_modell.predict(np.ones(future_window_size))
-        prediction = denormalize(ref, prediction)
-        real = data_set[i : i + future_window_size]
-        mse = MSE(prediction, real)
-        prediction_chain = np.append(prediction_chain, prediction)
-
-        print('{}/{} \t{}\t{}'.format(cnt, train_size, round(time_end - time_start, 4), round(mse, 4)))
-        cnt += 1
+        result = train_predict(
+            hp, 
+            np.ones(past_window_size), 
+            section[ : past_window_size], 
+            np.ones(future_window_size), 
+            data_set[past_window_size : ]
+            )
+        denormalized = denormalize(ref, result[2])
+        mse = MSE(denormalized, data_set[i : i + future_window_size])
+        mean_mse += mse
+        predictions.append((i, denormalized))
+        
+        # mean_mse += mse
+        print('{}/{} \t{}\t{}'.format(run + 1, train_runs, result[1], mse))
+        # print('{}/{} \t{}\t{}'.format(run, train_size, round(duration, 4), round(mse, 4)))
+    
     plt.figure()
-    plt.plot(
-        range(past_window_size - future_window_total, past_window_size + future_window_total), 
-        data_set[past_window_size - future_window_total : past_window_size + future_window_total], 
-        label='data'
-        )
-    plt.plot(
-        range(past_window_size, past_window_size + future_window_total), 
-        prediction_chain, 
-        label='prediction'
-        )
+    plt.suptitle('MSE: {}, Past window: {}, future window: {}\nsparsity: {}, spectral radius: {}, reservoir size: {}, noise: {}'.format(
+        round(mean_mse / train_runs, 4),
+        past_window_size,
+        future_window_size,
+        hp['sparsity'],
+        hp['spectral_radius'],
+        hp['resevoir_size'],
+        hp['noise']
+        ))
+    if(shuffle):
+        plt.plot(
+            data_set, 
+            label='data'
+            )
+    else:
+        plt.plot(
+            range(offset + 1, offset + past_window_size + 1 + train_runs * future_window_size), 
+            data_set[offset + 1 : offset + past_window_size + 1 + train_runs * future_window_size], 
+            label='data'
+            )
+    # plt.plot(
+    #     range(past_window_size + offset, past_window_size + offset + train_runs * future_window_size), 
+    #     prediction_chain, 
+    #     label='prediction'
+    #     )
+    for prediction in predictions:
+        plt.plot(
+            range(prediction[0], prediction[0] + future_window_size), 
+            prediction[1], 
+            label='prediction',
+            color='orange'
+            )
+    plt.ylabel('Energy consumption (W)')
     plt.show()
 
-# Train ze ESN on all ze normalized data
-def esn_train_normalized():
-    # Build ze modell
-    das_modell = make_modell()
-    
-    # load ze dataset, were we use only the second column (power usage), and the header is skipped
-    data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
-    
-    # To prevent zero division errors, change all occurrences of 0 to 1
-    # This is a small deviation in the (-3000, 6000) range
-    data_set[data_set == 0] = 1
-    
-    index_range = data_set.size - past_window_size - 1 - future_window_size
-    if(shuffle):
-        indices_train = random.sample(range(past_window_size + 1, data_set.size - future_window_size), index_range)
-    else:
-        # 
-        indices_train = range(past_window_size + 1, data_set.size - future_window_size, future_window_size)
-    
-    train_size = len(indices_train)
-    
-    # First, train ze esn on all ze data available
-    print('Starting training of ESN model with {} datapoints'.format(data_set.size))
-    cnt = 0
-    try:
-        for i in indices_train:
-            cnt += 1
-            # Train using the normalized dataset as input, and the same dataset shifted n steps into the future as teacher
-            train_input_raw = data_set[i - past_window_size - 1 : i ]
-            ref_input, train_input = normalize_change(train_input_raw)
-            
-            train_teacher_raw = data_set[i - past_window_size - 1  + future_window_size : i + future_window_size]
-            ref_teacher, train_teacher = normalize_change(train_teacher_raw)
-            
-            time_start = time.time()
-            results_raw = das_modell.fit(train_input, train_teacher)
-            time_end = time.time()
-            
-            results = denormalize_change(ref_teacher, results_raw)
-            real = denormalize_change(ref_teacher, train_teacher)
-            mse = MSE(results, real)
+""" 
+    # Train ze ESN on all ze normalized data
+    def esn_train_normalized():
+        # Build ze modell
+        das_modell = make_modell()
+        
+        # load ze dataset, were we use only the second column (power usage), and the header is skipped
+        data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
+        
+        # # To prevent zero division errors, change all occurrences of 0 to 1
+        # # This is a small deviation in the (-3000, 6000) range
+        # data_set[data_set == 0] = 1
+        
+        index_range = data_set.size - past_window_size - 1 - future_window_size
+        # Train and predict on random places in the dataset
+        if(shuffle):
+            indices_train = random.sample(range(past_window_size + 1, data_set.size - future_window_size), index_range)
+        else:
+            # 
+            indices_train = range(past_window_size + 1, data_set.size - future_window_size, future_window_size)
+        
+        train_size = len(indices_train)
+        
+        # First, train ze esn on all ze data available
+        print('Starting training of ESN model with {} datapoints'.format(data_set.size))
+        cnt = 0
+        try:
+            for i in indices_train:
+                cnt += 1
+                # Train using the normalized dataset as input, and the same dataset shifted n steps into the future as teacher
+                train_input_raw = data_set[i - past_window_size - 1 : i ]
+                ref_input, train_input = normalize_change(train_input_raw)
+                
+                train_teacher_raw = data_set[i - past_window_size - 1  + future_window_size : i + future_window_size]
+                ref_teacher, train_teacher = normalize_change(train_teacher_raw)
+                
+                time_start = time.time()
+                results_raw = das_modell.fit(train_input, train_teacher)
+                time_end = time.time()
+                
+                results = denormalize_change(ref_teacher, results_raw)
+                real = denormalize_change(ref_teacher, train_teacher)
+                mse = MSE(results, real)
 
-            print('{}/{} \t{}\t{}'.format(cnt, train_size, round(time_end - time_start, 4), round(mse, 4)))
-    except KeyboardInterrupt:
-        pass
-    print('Saving model as ' + model_file_name)
-    # Saving our hard work
-    with open(model_file_name, 'wb') as model_file:
-        pickle.dump(das_modell, model_file)
-    
-def esn_predict_normalized():
-    try:
-        model_file = open(model_file_name, 'wb')
-        das_modell = pickle.load(model_file)
-    except OSError:
-        print('File ' + model_file_name + ' not found.')
-        exit()
-    
-    # load ze dataset, were we use only the second column (power usage), and the header is skipped
-    data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
+                print('{}/{} \t{}\t{}'.format(cnt, train_size, round(time_end - time_start, 4), round(mse, 4)))
+        except KeyboardInterrupt:
+            pass
+        print('Saving model as ' + model_file_name)
+        # Saving our hard work
+        with open(model_file_name, 'wb') as model_file:
+            pickle.dump(das_modell, model_file)
+        
+    def esn_predict_normalized():
+        try:
+            model_file = open(model_file_name, 'wb')
+            das_modell = pickle.load(model_file)
+        except OSError:
+            print('File ' + model_file_name + ' not found.')
+            exit()
+        
+        # load ze dataset, were we use only the second column (power usage), and the header is skipped
+        data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
 
-    index_range = (data_set.size - past_window_size) - future_window_size
-    if(shuffle):
-        indices_train = random.sample(range(past_window_size, data_set.size - future_window_size), index_range)
-    else:
-        indices_train = range(past_window_size, past_window_size + future_window_total, future_window_size)
-    
-def esn_normalized_change():
-    # # Since normalized change requires the dataset to be 1 entry larger, modify past_window_size
-    # global past_window_size
-    # past_window_size += 1
-    
-    das_modell = make_modell()
-    
-    # data_file = open(data_file_name, 'r')
-    # data_reader = csv.reader(data_file)
-
+        index_range = (data_set.size - past_window_size) - future_window_size
+        if(shuffle):
+            indices_train = random.sample(range(past_window_size, data_set.size - future_window_size), index_range)
+        else:
+            indices_train = range(past_window_size, past_window_size + future_window_total, future_window_size)
+"""    
+def esn_normalized_change(past_window_size, future_window_size = 2, train_runs = 50, offset = 50):
+    shuffle = False
     data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
     # To prevent zero division errors, change all occurrences of 0 to 1
     # This is a small deviation in the scale of (-3000, 6000) range
-    data_set[data_set == 0] = 1
+    # data_set[data_set == 0] = 1
     
-    indices_train = range(past_window_size + 1, past_window_size + 1 + future_window_total, future_window_size)
+    indices_train = range(past_window_size + 1 + offset, past_window_size + 1 + offset + future_window_size * train_runs, future_window_size)
     
-    train_size = len(indices_train)
-    cnt = 0
-    prediction_chain = np.empty((0))
+    predictions = []
+    mean_mse = 0
     
-    for i in indices_train:
-        train_inputs_raw = data_set[i - past_window_size - 1 : i]
+    for run, i in enumerate(indices_train):
         # Normalize ze data
-        ref, train_inputs = normalize_change(train_inputs_raw)
+        ref, section = normalize_change(data_set[i - past_window_size - 1 : i + future_window_size])
+        result = train_predict(
+            hp, 
+            np.ones(past_window_size), 
+            section[ : past_window_size], 
+            np.ones(future_window_size), 
+            data_set[past_window_size : ]
+            )
         
-        time_start = time.time()
-        # train_outputs = das_modell.fit(train_inputs, data_set[i - past_window_size + future_window_size : i + future_window_size])
-        train_outputs = das_modell.fit(np.ones(past_window_size), train_inputs)
-        time_end = time.time()
-        # make prediction
-        prediction = das_modell.predict(np.ones(future_window_size))
-        prediction = denormalize_change(data_set[i - 1], prediction)
-        real = data_set[i : i + future_window_size]
-        mse = MSE(prediction, real)
-        prediction_chain = np.append(prediction_chain, prediction)
+        denormalized = denormalize_change(data_set[i - 1], result[2])
+        mse = MSE(denormalized, data_set[i : i + future_window_size])
+        mean_mse += mse
+        predictions.append((i, denormalized))
+        
+        # time_start = time.time()
+        # # train_outputs = das_modell.fit(train_inputs, data_set[i - past_window_size + future_window_size : i + future_window_size])
+        # train_outputs = das_modell.fit(np.ones(past_window_size), train_inputs)
+        # time_end = time.time()
+        # # make prediction
+        # prediction = das_modell.predict(np.ones(future_window_size))
+        # prediction = denormalize_change(data_set[i - 1], prediction)
+        # real = data_set[i : i + future_window_size]
+        # mse = MSE(prediction, real)
+        # prediction_chain = np.append(prediction_chain, prediction)
 
-        cnt += 1
-        print('{}/{} \t{}\t{}'.format(cnt, train_size, round(time_end - time_start, 4), round(mse, 4)))
+        # cnt += 1
+        print('{}/{} \t{}\t{}'.format(run, train_runs, result[1], round(mse, 4)))
     plt.figure()
-    plt.plot(
-        range(max(past_window_size - future_window_total, 0), past_window_size + future_window_total), 
-        data_set[max(past_window_size - future_window_total, 0) : past_window_size + future_window_total], 
-        label='data'
-        )
-    plt.plot(
-        range(past_window_size, past_window_size + future_window_total), 
-        prediction_chain, 
-        label='prediction'
-        )
+    plt.suptitle('MSE: {}, Past window: {}, future window: {}\nsparsity: {}, spectral radius: {}, reservoir size: {}, noise: {}'.format(
+        round(mean_mse / train_runs, 4),
+        past_window_size,
+        future_window_size,
+        hp['sparsity'],
+        hp['spectral_radius'],
+        hp['resevoir_size'],
+        hp['noise']
+        ))
+    if(shuffle):
+        plt.plot(
+            data_set, 
+            label='data'
+            )
+    else:
+        plt.plot(
+            range(offset + 1, offset + past_window_size + 1 + train_runs * future_window_size), 
+            data_set[offset + 1 : offset + past_window_size + 1 + train_runs * future_window_size], 
+            label='data'
+            )
+    for prediction in predictions:
+        plt.plot(
+            range(prediction[0], prediction[0] + future_window_size), 
+            prediction[1], 
+            label='prediction',
+            color='orange'
+            )
+    plt.ylabel('Energy consumption (W)')
     plt.show()
 
-def esn_raw():
-    global validation
-    # try:
-    #     model_file = open(model_file_name, 'wb')
-    #     das_modell = pickle.load(model_file)
-
-    # except Exception:
-    
-    das_modell = make_modell()
-    
-    data_file = open(data_file_name, 'r')
-    data_reader = csv.reader(data_file)
-
-    # data_len = sum(1 for row in data_set)
-    # data_len = len(data_file.readlines())
-
+def esn_raw(past_window_size, future_window_size = 2, train_runs = 50, offset = 50, shuffle = True):
+    # Load data from csv
     data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
-    # data_set = np.genfromtxt(data_file_name, skip_header=1, converters={1: lambda s: int(s)})
     
+    # Generate a set of indices, which marks in the original dataset the end of a train subset, and the start of the predict subset
+    if(shuffle):
+        indices_train = random.sample(range(past_window_size + offset, data_set.size - future_window_size), train_runs)
+    else:
+        indices_train = range(past_window_size + offset, past_window_size + offset + train_runs * future_window_size, future_window_size)
     
-    # train_outputs = das_modell.fit(np.ones(train_fraction), data_set[:train_fraction])
-    breakpoint
-    # index_range = (data_set.size - past_window_size) - future_window_size
-    # if(shuffle):
-    #     indices = random.sample(range(past_window_size, data_set.size - future_window_size), index_range)
-    # else:
-    indices = range(past_window_size, (past_window_size + 100) - future_window_size, future_window_size)
+    predictions = []
+    mean_mse = 0
     
-    train_fraction = len(indices) - int(len(indices) * validation)
+    for run, i in enumerate(indices_train):
+        result = train_predict(
+            hp, 
+            np.ones(past_window_size), 
+            data_set[i - past_window_size : i], 
+            np.ones(future_window_size), 
+            data_set[i : i + future_window_size]
+            )
+        mean_mse += result[0]
+        predictions.append((i, result[2]))
+        print('{}/{} \t{}\t{}'.format(run + 1, train_runs, result[0], result[1]))
 
-    indices_train = indices[0 : train_fraction]
-    indices_validation = indices[train_fraction : -1]
-    del indices
-
-    train_size = len(indices_train)
-    cnt = 0
-    breakpoint
-
-    prediction_chain = np.empty((0))
-    
-    for i in indices_train:
-        train_inputs = data_set[i - past_window_size : i]
-        time_start = time.time()
-        # train_outputs = das_modell.fit(train_inputs, data_set[i - past_window_size + future_window_size : i + future_window_size])
-        train_outputs = das_modell.fit(np.ones(past_window_size), train_inputs)
-        time_end = time.time()
-        prediction = das_modell.predict(np.ones(future_window_size))
-        real = data_set[i : i + future_window_size]
-        mse = MSE(prediction, real)
-        prediction_chain = np.append(prediction_chain, prediction)
-
-        print('{}/{} \t{}\t{}'.format(cnt, train_size, round(time_end - time_start, 4), round(mse, 4)))
-        cnt += 1
-    # return
+    # The plot thickens
     plt.figure()
-    plt.plot(
-        range(past_window_size - 1000, past_window_size + train_size * future_window_size), 
-        data_set[past_window_size - 1000 : past_window_size + train_size * future_window_size], 
-        label='data'
-        )
-    plt.plot(
-        range(past_window_size, past_window_size + train_size * future_window_size), 
-        prediction_chain, 
-        label='prediction'
-        )
+    plt.suptitle('MSE: {}, Past window: {}, future window: {}\nsparsity: {}, spectral radius: {}, reservoir size: {}, noise: {}'.format(
+        round(mean_mse / train_runs, 4),
+        past_window_size,
+        future_window_size,
+        hp['sparsity'],
+        hp['spectral_radius'],
+        hp['resevoir_size'],
+        hp['noise']
+        ))
+    if(shuffle):
+        plt.plot(
+            data_set, 
+            label='data'
+            )
+    else:
+        plt.plot(
+            range(offset, offset + past_window_size + train_runs * future_window_size), 
+            data_set[offset : offset + past_window_size + train_runs * future_window_size], 
+            label='data'
+            )
+    for prediction in predictions:
+        plt.plot(
+            range(prediction[0], prediction[0] + future_window_size), 
+            prediction[1], 
+            label='prediction',
+            color='orange'
+            )
+    plt.ylabel('Energy consumption (W)')
     plt.show()
-    errors = np.empty((0))
-    for i in indices_validation:
-        prediction = das_modell.predict(data_set[i - past_window_size : i])
-        real = data_set[i : i + future_window_size]
-        errors = np.append(errors, np.subtract(prediction, real))
+    # errors = np.empty((0))
+    # for i in indices_validation:
+    #     prediction = das_modell.predict(data_set[i - past_window_size : i])
+    #     real = data_set[i : i + future_window_size]
+    #     errors = np.append(errors, np.subtract(prediction, real))
     
     return
 
-
-    # data_set = np.empty((0), dtype=float)
-    # cnt = 0
-    # try:
-    #     while cnt < past_window_size + future_window_size:
-    #         row = next(data_reader)
-    #         data_set = np.append(data_set, int(row[1]))
-    #         cnt += 1
-    # except StopIteration:
-    #     print('Data set is not large enough.\nQuittin\'')
-    #     exit()
-    
-    try:
-        while True:
-            # Fit the model
-            das_modell.fit(data_set[0 : past_window_size], data_set[past_window_size : past_window_size + future_window_size])
-            row = next(data_reader)
-            data_set = np.append(data_set[1:], int(row[1]))
-    # No more rows in the dataset
-    except StopIteration:
-        print('Done fiting the model')
-        # Save tha model
-        with open(model_file_name, 'wb') as model_file:
-            pickle.dump(das_modell, model_file)
-        exit()
-            
-            
-
-
-    # prediction_chain = np.empty((0))
-    # # real_chain = np.empty((0))
-
-    # for i in range(0, future_window_total, future_window_size):
+""" 
+    def test_normalization():
+        test = np.array(list(range(1,11)))
+        ref, data = normalize_change(test)
+        res = denormalize_change(ref, data)
         
-    #     training = das_modell.fit(np.ones(past_window_size), data_set[i:past_window_size + i])
-    #     prediction = das_modell.predict(np.ones(future_window_size))
-    #     # real_chain = np.append(real_chain, data_set[future_window_size + i : future_window_size + i + future_window_size])
-    #     prediction_chain = np.append(prediction_chain, prediction)
-    
-    # # Plot tha results
-    
-    # henk = None
+        print(test)
+        print(np.round(data, 2))
+        print(res)
 
-def test_normalization():
-    test = np.array(list(range(1,11)))
-    ref, data = normalize_change(test)
-    res = denormalize_change(ref, data)
-    
-    print(test)
-    print(np.round(data, 2))
-    print(res)
-
-def test_moving_average():
-    data = np.arange(10)
-    print(moving_average(data, (1,1), 1))
-
+    def test_moving_average():
+        data = np.arange(10)
+        print(moving_average(data, (1,1), 1))
+"""
 if __name__ == '__main__':
-    esn_filtered_downsampled()
+    # Train esn on raw data
+    # esn_raw(1500, train_runs=50, shuffle = False)
+
+    # Train esn on normalized data
+    # esn_normalized(1500, train_runs= 50)
+    # esn_normalized_change(1500, train_runs= 50)
+    esn_differenced()
+    

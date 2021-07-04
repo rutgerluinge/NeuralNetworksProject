@@ -42,38 +42,26 @@ future_window_size = 2
 n_runs = 50
 future_window_total = n_runs * future_window_size
 
-# Use timeseries [a...b] to train ESN to predict [a+n...b+n]
-def esn_sections_signalinput():
-    pass
-
 # predict timeseries by splitting timeseries in different sections based on timescale
 # Ex daily pattern, hourly pattern, minute pattern,
 # and train esns on signals filtered for these sections
 def esn_sections():
     # List with cut-off frequencies to filter the data with
-    # intervals = [(60 * 60 * 24), (60 * 60), (60)]
-    intervals = [(60 * 60 * 24)]
+    intervals = [(60 * 60 * 20), (1 * 2 * 60)]
+    # intervals = [(60 * 60 * 24)]
     
     # Since low frequency signals are slower, we can predict these signals easier and therefore further in time
-    # This apporach is used to predict the general day/night patterns far ahead, and the fluctuations (higher frequency components)
+    # This approach is used to predict the general day/night patterns far ahead, and the fluctuations (higher frequency components)
     # can be predicted on a shorter scale. 
-    # downsampling = [(60 * 6), (10 * 6), (6), (1)]
-    downsampling = [(30 * 6)]
+    downsampling = [(1), (1), (1)]
+    # downsampling = [(30 * 6)]
     
     n_sections = len(intervals) + 1
 
-    # Load data
-    data = pd.read_csv(
-        data_file_name, 
-        parse_dates=True, 
-        header=None,
-        names=['timestamp', 'usage']
-        )
-    data['timestamp'] = pd.to_datetime(data['timestamp'])
+    # Load data from csv
+    data = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
     
-    upper_boundary = min(data['usage'].size, past_window_size + offset + future_window_total)
-    data = data['usage'].to_numpy()
-    indices_train = range(past_window_size + offset, upper_boundary, future_window_size)
+    indices_train = range(past_window_size + offset, past_window_size + offset + n_runs * future_window_size, future_window_size)
     
     # This list stores the filtered sections of the original data, in the same order as 
     sections = []
@@ -101,13 +89,14 @@ def esn_sections():
     for run, i in enumerate(indices_train):
         print_list = ['{}/{}'.format(run, n_runs)]
         for section in range(n_sections):
+            modell = make_modell(hp)
             train_window = sections[section][i - past_window_size : i]
 
             time_start = time.time()
-            train_outputs = modells[section].fit(np.ones(past_window_size), train_window)
+            train_outputs = modell.fit(np.ones(past_window_size), train_window)
             duration = time.time() - time_start
 
-            pred = modells[section].predict(np.ones(future_window_size))
+            pred = modell.predict(np.ones(future_window_size))
             real = sections[section][i : i + future_window_size]
             mse = MSE(pred, real)
             predictions[section] = np.append(predictions[section], pred)
@@ -136,4 +125,4 @@ def esn_sections():
         
 
 if __name__ == '__main__':
-    esn_predict_sections()
+    esn_sections()

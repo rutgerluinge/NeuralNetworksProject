@@ -20,7 +20,6 @@ hp = {
     'noise': 0.001
 }
 
-
 # Start training after n samples, to prevent filter oscillations at start to influence training
 # 30 min = 30 * 6 samples
 offset = 50
@@ -42,6 +41,7 @@ validation = 0.1
 # frequency of samples: 1 / sample interval = 1/10 = 0.1
 samplerate = 0.1
 
+# ESN train function used by other functions
 def train_predict(hyper: dict, train_input, train_teacher, predict_input, predict_teacher):
     modell = make_modell(hyper)
     
@@ -53,6 +53,7 @@ def train_predict(hyper: dict, train_input, train_teacher, predict_input, predic
     mse = round(MSE(prediction, predict_teacher), 4)
     return (mse, duration, prediction)
 
+# Compare ESN performance on unprocessed data, filtered data, differenced data, and filtered and differenced data
 def esn_day_comparison():
     data_week = pd.read_csv(
         'Datasets/Correct/usage_2021-04-12_2021-04-19.csv', 
@@ -307,10 +308,10 @@ def esn_day_comparison():
 
     breakpoint
 
-# Compare different window sizes for averaging
+# Visualize different window sizes for averaging
 def day_average():
     data_week = pd.read_csv(
-        data_file_name, 
+        'Datasets/Correct/usage_2021-04-12_2021-04-19.csv', 
         parse_dates=True, 
         header=None,
         names=['date', 'usage']
@@ -318,7 +319,8 @@ def day_average():
     data_week['date'] = pd.to_datetime(data_week['date'])
     data = data_week.loc[data_week['date'].dt.weekday == 5]
     data = data['usage'].to_numpy()
-
+    
+    # Free memory
     del data_week
     # Windows for averaging (min):
     windows = np.array([60 * 6, 20 * 6, 10 * 6, 5 * 6, 2 * 6, 1 * 6]) * 10
@@ -338,13 +340,9 @@ def day_average():
             )
     plt.show()
 
+# Train ESN on differenced data
 def esn_differenced():
     # # Since normalized change requires the dataset to be 1 entry larger, modify past_window_size
-    # global past_window_size
-    # past_window_size += 1
-    
-    # data_file = open(data_file_name, 'r')
-    # data_reader = csv.reader(data_file)
     data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
     
     indices_train = range(past_window_size + 1, past_window_size + 1 + future_window_total, future_window_size)
@@ -355,14 +353,15 @@ def esn_differenced():
     
     for i in indices_train:
         das_modell = make_modell(hp)
+        
         train_inputs_raw = data_set[i - past_window_size - 1 : i]
         # Normalize ze data
         ref, train_inputs = difference(train_inputs_raw)
         
         time_start = time.time()
-        # train_outputs = das_modell.fit(train_inputs, data_set[i - past_window_size + future_window_size : i + future_window_size])
         train_outputs = das_modell.fit(np.ones(past_window_size), train_inputs)
         time_end = time.time()
+        
         # make prediction
         prediction = das_modell.predict(np.ones(future_window_size))
         prediction = dedifference(data_set[i - 1], prediction)
@@ -385,11 +384,15 @@ def esn_differenced():
         )
     plt.show()
 
+# Train ESN on data filtered with a low pass filter
 def esn_filtered_lowpass(cutoff = 1 / (10 * 60)):
     das_modell = make_modell()
 
-    data = np.genfromtxt(data_file_name, skip_header=0, usecols=(1), delimiter=',')
+    data = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
+    
+    # Apply low pass filter
     data = butter_lowpass(data, cutoff, samplerate)
+    
     train_size = int((len(data) - offset) / 2)
     train = data[offset : train_size + offset]
     real = data[train_size + offset : ]
@@ -410,11 +413,12 @@ def esn_filtered_lowpass(cutoff = 1 / (10 * 60)):
         )
     plt.show()
 
-def esn_filtered_lowerpass():
+# Train ESN on filtered and normalized data
+def esn_filtered_lowerpass(cutoff = 1 / (2 * 60)):
     das_modell = make_modell()
     
     data = np.genfromtxt(data_file_name, skip_header=0, usecols=(1), delimiter=',')
-    filtered = butter_lowpass(data, 1 / (2 * 60), samplerate)
+    filtered = butter_lowpass(data, cutoff, samplerate)
     ref, filtered = normalize_change(filtered)
     train_size = int(len(filtered) / 2)
     train = filtered[0 : train_size]
@@ -436,11 +440,10 @@ def esn_filtered_lowerpass():
         )
     plt.show()
 
-def esn_filtered_highpass():
-    das_modell = make_modell()
-    
-    data = np.genfromtxt(data_file_name, skip_header=0, usecols=(1), delimiter=',')
-    data = butter_highpass(data, 1 / (30 * 60), samplerate)
+# Train ESN on high pass filtered data
+def esn_filtered_highpass(cutoff = 1 / (30 * 60)):
+    data = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
+    data = butter_highpass(data, cutoff, samplerate)
     
     prediction_chain = np.empty((0))
     
@@ -448,6 +451,8 @@ def esn_filtered_highpass():
     cnt = 0
     train_size = len(indices_train)
     for i in indices_train:
+        das_modell = make_modell()
+        
         train_inputs = data[i - past_window_size : i]
         # Normalize ze data
         
@@ -476,7 +481,8 @@ def esn_filtered_highpass():
         )
     plt.show()
 
-def esn_filtered_downsampled():
+# Train ESN on downscaled low pass filtered data
+def esn_filtered_downsampled(cutoff = 1 / (10 * 60 * 6 * 10)):
     # Downsampling - 60 second interval between samples = 6 * interval
     # 10 min sample interval
     scale = 10 * 6
@@ -485,7 +491,7 @@ def esn_filtered_downsampled():
     
     data = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
     # 1 / 10 hrs cutoff frequency
-    data = butter_lowpass(data, 1 / (10 * 60 * 6 * 10), samplerate)
+    data = butter_lowpass(data, cutoff, samplerate)
     # down sample with scale value to get an array with sample interval = scale * old sample interval
     data = data[ : : scale]
     
@@ -522,6 +528,7 @@ def esn_filtered_downsampled():
         )
     plt.show()
 
+# Train ESN on filtered normalized and downscaled data
 def esn_filtered_downsampled_normalized():
     # Downsampling - 60 second interval between samples = 6 * interval
     # 2 * 6 = 2 minutes
@@ -572,6 +579,7 @@ def esn_filtered_downsampled_normalized():
         )
     plt.show()
 
+# Train ESN on normalized data
 def esn_normalized(past_window_size, future_window_size = 2, train_runs = 50, offset = 50, shuffle = False):
     # Load data
     data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
@@ -644,81 +652,10 @@ def esn_normalized(past_window_size, future_window_size = 2, train_runs = 50, of
     plt.ylabel('Energy consumption (W)')
     plt.show()
 
-""" 
-    # Train ze ESN on all ze normalized data
-    def esn_train_normalized():
-        # Build ze modell
-        das_modell = make_modell()
-        
-        # load ze dataset, were we use only the second column (power usage), and the header is skipped
-        data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
-        
-        # # To prevent zero division errors, change all occurrences of 0 to 1
-        # # This is a small deviation in the (-3000, 6000) range
-        # data_set[data_set == 0] = 1
-        
-        index_range = data_set.size - past_window_size - 1 - future_window_size
-        # Train and predict on random places in the dataset
-        if(shuffle):
-            indices_train = random.sample(range(past_window_size + 1, data_set.size - future_window_size), index_range)
-        else:
-            # 
-            indices_train = range(past_window_size + 1, data_set.size - future_window_size, future_window_size)
-        
-        train_size = len(indices_train)
-        
-        # First, train ze esn on all ze data available
-        print('Starting training of ESN model with {} datapoints'.format(data_set.size))
-        cnt = 0
-        try:
-            for i in indices_train:
-                cnt += 1
-                # Train using the normalized dataset as input, and the same dataset shifted n steps into the future as teacher
-                train_input_raw = data_set[i - past_window_size - 1 : i ]
-                ref_input, train_input = normalize_change(train_input_raw)
-                
-                train_teacher_raw = data_set[i - past_window_size - 1  + future_window_size : i + future_window_size]
-                ref_teacher, train_teacher = normalize_change(train_teacher_raw)
-                
-                time_start = time.time()
-                results_raw = das_modell.fit(train_input, train_teacher)
-                time_end = time.time()
-                
-                results = denormalize_change(ref_teacher, results_raw)
-                real = denormalize_change(ref_teacher, train_teacher)
-                mse = MSE(results, real)
-
-                print('{}/{} \t{}\t{}'.format(cnt, train_size, round(time_end - time_start, 4), round(mse, 4)))
-        except KeyboardInterrupt:
-            pass
-        print('Saving model as ' + model_file_name)
-        # Saving our hard work
-        with open(model_file_name, 'wb') as model_file:
-            pickle.dump(das_modell, model_file)
-        
-    def esn_predict_normalized():
-        try:
-            model_file = open(model_file_name, 'wb')
-            das_modell = pickle.load(model_file)
-        except OSError:
-            print('File ' + model_file_name + ' not found.')
-            exit()
-        
-        # load ze dataset, were we use only the second column (power usage), and the header is skipped
-        data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
-
-        index_range = (data_set.size - past_window_size) - future_window_size
-        if(shuffle):
-            indices_train = random.sample(range(past_window_size, data_set.size - future_window_size), index_range)
-        else:
-            indices_train = range(past_window_size, past_window_size + future_window_total, future_window_size)
-"""    
+# Train ESN on normalized data
 def esn_normalized_change(past_window_size, future_window_size = 2, train_runs = 50, offset = 50):
     shuffle = False
     data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
-    # To prevent zero division errors, change all occurrences of 0 to 1
-    # This is a small deviation in the scale of (-3000, 6000) range
-    # data_set[data_set == 0] = 1
     
     indices_train = range(past_window_size + 1 + offset, past_window_size + 1 + offset + future_window_size * train_runs, future_window_size)
     
@@ -785,6 +722,7 @@ def esn_normalized_change(past_window_size, future_window_size = 2, train_runs =
     plt.ylabel('Energy consumption (W)')
     plt.show()
 
+# Train ESN on raw data
 def esn_raw(past_window_size, future_window_size = 2, train_runs = 50, offset = 50, shuffle = True):
     # Load data from csv
     data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
@@ -849,20 +787,6 @@ def esn_raw(past_window_size, future_window_size = 2, train_runs = 50, offset = 
     
     return
 
-""" 
-    def test_normalization():
-        test = np.array(list(range(1,11)))
-        ref, data = normalize_change(test)
-        res = denormalize_change(ref, data)
-        
-        print(test)
-        print(np.round(data, 2))
-        print(res)
-
-    def test_moving_average():
-        data = np.arange(10)
-        print(moving_average(data, (1,1), 1))
-"""
 if __name__ == '__main__':
     # Train esn on raw data
     # esn_raw(1500, train_runs=50, shuffle = False)
@@ -870,5 +794,7 @@ if __name__ == '__main__':
     # Train esn on normalized data
     # esn_normalized(1500, train_runs= 50)
     # esn_normalized_change(1500, train_runs= 50)
+    
+    # Train ESN on differenced data
     esn_differenced()
     

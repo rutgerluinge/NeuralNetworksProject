@@ -40,7 +40,10 @@ shuffle = False
 n_runs = 50
 future_window_total = n_runs * future_window_size
 
-# Train 2 esns, one on data that is smoothed by a moving average, and the other on the difference between the original data and the moving average
+# Train 3 esns, 
+# - one on unprocessed data,
+# - one on data that is smoothed by a moving average, 
+# - the other on the difference between the original data and the moving average
 def esn_smoothed():
     # Load data
     data = pd.read_csv(
@@ -106,10 +109,11 @@ def esn_smoothed():
     
     plt.show()
 
+# Train ESN with smoothed timeseries as input to predict the same timeseries n steps into the futur
 def esn_smoothed_signalinput(past_window_size, future_window_size = 10, train_runs = 50, validation_runs = 10, shuffle = True):
     # Load data
-    # original = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
-    smoothed = np.genfromtxt(data_file_name, skip_header=0, usecols=(0), delimiter=',')
+    # original = np.genfromtxt('Datasets/Correct/usage.csv', skip_header=1, usecols=(1), delimiter=',')
+    smoothed = np.genfromtxt('Datasets/Correct/usage_smoothed_100.csv', skip_header=0, usecols=(0), delimiter=',')
     data_length = smoothed.size
     
     # Subtract window to exclude the part where moving average has to shift with the window 
@@ -129,6 +133,7 @@ def esn_smoothed_signalinput(past_window_size, future_window_size = 10, train_ru
     # print('Smoothing data')
     # smoothed = moving_average(original, (window_size, window_size))
     # smoothed = original
+    
     print_format = '{:<12}' * 3
 
     # Make modell
@@ -143,6 +148,7 @@ def esn_smoothed_signalinput(past_window_size, future_window_size = 10, train_ru
     modell = make_modell(hyper)
     
     # Print header
+    print('Training')
     print(print_format.format('Run', 'Time', 'MSE'))
     for iteration, i in enumerate(indices_train):
         
@@ -155,21 +161,6 @@ def esn_smoothed_signalinput(past_window_size, future_window_size = 10, train_ru
         mse = MSE(train_outputs.reshape(train_outputs.shape[0]), train_window[future_window_size : ])
         
         print(print_format.format('{}/{}'.format(iteration + 1, train_runs), round(duration, 4), round(mse, 4)))
-        
-        # predictions.append((i, train_outputs))
-        # plt.figure()
-        # plt.suptitle('Validation: {}, MSE: {}\nPast window: {}, future window: {}, sparsity: {}, spectral radius: {}, reservoir size: {}, noise: {}'.format(
-        #     iteration + 1, 
-        #     mse,
-        #     past_window_size,
-        #     future_window_size,
-        #     hyper['sparsity'],
-        #     hyper['spectral_radius'],
-        #     hyper['resevoir_size'],
-        #     hyper['noise']
-        #     ))
-        # plt.plot(smoothed)
-        # plt.plot(range(i - past_window_size + future_window_size, i + future_window_size), train_outputs)
     
     print('Validation')
     for iteration, i in enumerate(indices_validation):
@@ -198,13 +189,10 @@ def esn_smoothed_signalinput(past_window_size, future_window_size = 10, train_ru
         print(print_format.format('{}/{}'.format(iteration + 1, validation_runs), round(duration, 4), round(mse, 4)))
     plt.show()
 
+# ESN with online learning attempt
 def esn_online(past_window_size, future_window_size):
-    
-    smoothed = np.genfromtxt(data_file_name, skip_header=0, usecols=(0), delimiter=',')
-    
-    # # Get smoothed data
-    # print('Smoothing data')
-    # smoothed = moving_average(original, (window_size, window_size))[window_size : -window_size]
+    # Data 
+    smoothed = np.genfromtxt('Datasets/Correct/usage_smoothed_100.csv', skip_header=0, usecols=(0), delimiter=',')
     data_length = smoothed.size
     
     print_format = '{:<12}' * 3
@@ -220,7 +208,7 @@ def esn_online(past_window_size, future_window_size):
     }
     modell = make_modell(hyper)
     
-    print('training model on initial data')
+    print('Training model on initial data')
     # Print header
     print(print_format.format('Run', 'Time', 'MSE'))
     train_window = smoothed[ : past_window_size + 1]
@@ -241,52 +229,6 @@ def esn_online(past_window_size, future_window_size):
         mse = MSE(train_outputs.reshape(train_outputs.shape[0]), train_window[1 : ])
         
         print(print_format.format('{}/{}'.format(iteration + 1, '?'), round(duration, 4), round(mse, 4)))
-
-def esn_parameter_optimization():
-    hyper = {
-        'resevoir_size': [500, 1000, 1500, 2000, 3000],
-        'sparsity': [0.005, 0.01, 0.05, 0.1],
-        'rand_seed': 20,
-        'spectral_radius': [0.8, 0.9, 1, 1.1, 1.2, 1.5],
-        'noise': 0.001
-    }
-    n_options = len(hyper['resevoir_size']) * len(hyper['sparsity']) * len(hyper['spectral_radius'])
-
-    smoothed = np.genfromtxt(data_file_name, skip_header=0, usecols=(0), delimiter=',')
-    data_length = smoothed.size
-    
-    # # Get smoothed data
-    # print('Smoothing data')
-    # smoothed = moving_average(original, (window_size, window_size))[window_size : -window_size]
-    data_length = smoothed.size
-    
-    print_format = '{:<12}' * 3
-    
-    print(print_format.format('Time', 'MSE', 'Reservoir size, sparsity, spectral radius'))
-    for option in range(n_options):
-        # Get parameter indices based on the option counter
-        par1 = int(option % len(hyper['resevoir_size']))
-        par2 = int((option / len(hyper['resevoir_size'])) % len(hyper['sparsity']))
-        par3 = int((option / (len(hyper['resevoir_size']) * len(hyper['sparsity']))) % len(hyper['spectral_radius']))
-        
-        # Generate the modell with the current parameters
-        modell = make_modell_2(hyper['resevoir_size'][par1], hyper['sparsity'][par2], hyper['spectral_radius'][par3])
-        
-        train_window = smoothed[ : past_window_size + future_window_size * 2]
-
-        time_start = time.time()
-        train_outputs = modell.fit(train_window[ : past_window_size], train_window[future_window_size : past_window_size + future_window_size])
-        duration = time.time() - time_start
-
-        predict_output = modell.predict(train_window[ future_window_size : past_window_size + future_window_size ])
-        mse = MSE(predict_output.reshape(predict_output.shape[0]), train_window[ 2 * future_window_size : ])
-        
-        print(print_format.format(
-            round(duration, 4), 
-            round(mse, 4),
-            '{} - {} - {}'.format(hyper['resevoir_size'][par1], hyper['sparsity'][par2], hyper['spectral_radius'][par3])
-            ))
-
 
 if __name__ == '__main__':
     esn_smoothed()

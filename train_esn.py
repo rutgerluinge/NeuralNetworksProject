@@ -55,7 +55,7 @@ def train_predict(hyper: dict, train_input, train_teacher, predict_input, predic
 
 def esn_day_comparison():
     data_week = pd.read_csv(
-        data_file_name, 
+        'Datasets/Correct/usage_2021-04-12_2021-04-19.csv', 
         parse_dates=True, 
         header=None,
         names=['date', 'usage']
@@ -343,7 +343,6 @@ def esn_differenced():
     # global past_window_size
     # past_window_size += 1
     
-    das_modell = make_modell()
     # data_file = open(data_file_name, 'r')
     # data_reader = csv.reader(data_file)
     data_set = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
@@ -355,6 +354,7 @@ def esn_differenced():
     prediction_chain = np.empty((0))
     
     for i in indices_train:
+        das_modell = make_modell(hp)
         train_inputs_raw = data_set[i - past_window_size - 1 : i]
         # Normalize ze data
         ref, train_inputs = difference(train_inputs_raw)
@@ -849,24 +849,26 @@ def esn_raw(past_window_size, future_window_size = 2, train_runs = 50, offset = 
     
     return
 
-def test_normalization():
-    test = np.array(list(range(1,11)))
-    ref, data = normalize_change(test)
-    res = denormalize_change(ref, data)
-    
-    print(test)
-    print(np.round(data, 2))
-    print(res)
+""" 
+    def test_normalization():
+        test = np.array(list(range(1,11)))
+        ref, data = normalize_change(test)
+        res = denormalize_change(ref, data)
+        
+        print(test)
+        print(np.round(data, 2))
+        print(res)
 
-def test_moving_average():
-    data = np.arange(10)
-    print(moving_average(data, (1,1), 1))
-
+    def test_moving_average():
+        data = np.arange(10)
+        print(moving_average(data, (1,1), 1))
+"""
 if __name__ == '__main__':
     # Train esn on raw data
     # esn_raw(1500, train_runs=50, shuffle = False)
 
     # Train esn on normalized data
-    # esn_normalized(1500, train_runs= 50, shuffle = False)
-    esn_normalized_change(1500, train_runs= 50)
+    # esn_normalized(1500, train_runs= 50)
+    # esn_normalized_change(1500, train_runs= 50)
+    esn_differenced()
     

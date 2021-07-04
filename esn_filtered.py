@@ -47,13 +47,13 @@ future_window_total = n_runs * future_window_size
 # and train esns on signals filtered for these sections
 def esn_sections():
     # List with cut-off frequencies to filter the data with
-    intervals = [(60 * 60 * 12), (60 * 60), (60)]
+    intervals = [(60 * 60 * 20), (1 * 2 * 60)]
     # intervals = [(60 * 60 * 24)]
     
     # Since low frequency signals are slower, we can predict these signals easier and therefore further in time
     # This approach is used to predict the general day/night patterns far ahead, and the fluctuations (higher frequency components)
     # can be predicted on a shorter scale. 
-    downsampling = [(30 * 6), (10 * 6), (6), (1)]
+    downsampling = [(1), (1), (1)]
     # downsampling = [(30 * 6)]
     
     n_sections = len(intervals) + 1

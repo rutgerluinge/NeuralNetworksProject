@@ -47,9 +47,9 @@ def esn_smoothed():
         data_file_name, 
         parse_dates=True, 
         header=None,
-        names=['timestamp', 'usage']
+        names=['date', 'usage']
         )
-    data['timestamp'] = pd.to_datetime(data['timestamp'])
+    data['date'] = pd.to_datetime(data['date'])
     
     n_sections = 3
 
@@ -106,10 +106,12 @@ def esn_smoothed():
     
     plt.show()
 
-def esn_smoothed_signalinput(past_window_size, future_window_size = 10, train_runs = 50, validation_runs = 10):
+def esn_smoothed_signalinput(past_window_size, future_window_size = 10, train_runs = 50, validation_runs = 10, shuffle = True):
     # Load data
-    original = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
-    data_length = original.size
+    # original = np.genfromtxt(data_file_name, skip_header=1, usecols=(1), delimiter=',')
+    smoothed = np.genfromtxt(data_file_name, skip_header=0, usecols=(0), delimiter=',')
+    data_length = smoothed.size
+    
     # Subtract window to exclude the part where moving average has to shift with the window 
     past_window_size = past_window_size - window_size
     
@@ -124,21 +126,21 @@ def esn_smoothed_signalinput(past_window_size, future_window_size = 10, train_ru
     
 
     # Get smoothed data
-    print('Smoothing data')
-    smoothed = moving_average(original, (window_size, window_size))
+    # print('Smoothing data')
+    # smoothed = moving_average(original, (window_size, window_size))
     # smoothed = original
     print_format = '{:<12}' * 3
 
     # Make modell
     print('Generating modell')
     hyper = {
-        'resevoir_size': 3000,
-        'sparsity': 0.05,
-        'rand_seed': 21,
-        'spectral_radius': 0.85,
+        'resevoir_size': 2000,
+        'sparsity': 0.005,
+        'rand_seed': 20,
+        'spectral_radius': 1.2,
         'noise': 0.001
     }
-    modell = make_modell_2(3000, 0.05, 0.8, 0.005)
+    modell = make_modell(hyper)
     
     # Print header
     print(print_format.format('Run', 'Time', 'MSE'))
@@ -287,9 +289,7 @@ def esn_parameter_optimization():
 
 
 if __name__ == '__main__':
-    # Train esn on signal length of 2 weeks
-    # esn_smoothed_signalinput(6 * 60 * 24 * 7 * 2)
+    esn_smoothed()
     # esn_smoothed_signalinput(past_window_size = 6 * 60 * 24)
-    # esn_online(past_window_size = 6 * 60 * 24)
-    esn_parameter_optimization()
+    # esn_parameter_optimization()
     
